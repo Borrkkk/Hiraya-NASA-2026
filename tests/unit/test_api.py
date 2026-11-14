@@ -35,3 +35,36 @@ def test_frames_endpoint_bad_input(client):
     assert client.get("/inspect/frames", params={"ra": "x", "dec": "1"}).status_code == 422
     assert client.get("/inspect/frames", params={"ra": "1", "dec": "1", "bands": "9"}).status_code == 422
     assert client.get("/inspect/frames", params={"ra": "1", "dec": "1", "bands": "a"}).status_code == 422
+
+
+def test_inspect_endpoint_end_to_end(monkeypatch):
+    """Discovery (fake) → retrieval (mocked HTTP) → measurement → aggregation → JSON."""
+    import httpx
+    import respx
+
+    from spherex_inspect.retrieval import CutoutRetrieval
+
+    from .test_retrieval import MEF
+
+    rows = {"spherex_dr1": [make_row(f"o{i}", (i % 6) + 1, 61000.0 + 10 * i, "spherex_dr1") for i in range(6)]}
+    spherex_inspect.set_discovery(FrameDiscovery(FakeBackend(rows)))
+    spherex_inspect.set_retrieval(CutoutRetrieval(backoff_s=0, retries=1))
+    try:
+        with respx.mock:
+            ok = MEF
+            def handler(request):
+                return httpx.Response(503) if "o2D3" in str(request.url) else httpx.Response(200, content=ok)
+            respx.get(url__startswith="https://irsa").mock(side_effect=handler)
+            r = TestClient(app).get("/inspect", params={"ra": "269.452", "dec": "4.6933", "size": "0.02"})
+    finally:
+        spherex_inspect.set_discovery(None)
+        spherex_inspect.set_retrieval(None)
+    assert r.status_code == 200
+    b = r.json()
+    assert b["status"] == "partial" and len(b["frames"]) == 6
+    assert [f["status"] for f in b["frames"]].count("failed") == 1
+    assert b["summary"]["quality"]["n_frames"] == 6 and b["summary"]["quality"]["n_failed"] == 1
+    assert len(b["summary"]["spectrum_binned"]) == 102
+    assert any("cutouts failed" in w for w in b["warnings"])
+    assert any("context" in w for w in b["warnings"])
+    assert b["context"] is None

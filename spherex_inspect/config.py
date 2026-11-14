@@ -55,3 +55,12 @@ FLAGS_BAD_PIXEL = frozenset({"NONFUNC", "MISSING_DATA", "HOT", "COLD"})
 # Proposed (NOTES.md): saturation-type flags spoil the flux but not the centroid of a bright
 # star, so only these flags make the *position* unusable.
 FLAGS_POSITION_UNUSABLE = frozenset({"PERSIST", "GHOST", "GHOST_FPA", "GHOST_EXT", "STREAK", "HALO", "SNOWBALL"})
+
+# Time-Series Aggregation (brief §7)
+PM_MIN_BASELINE_DAYS = 150.0
+PM_MIN_DETECTIONS = 6
+PM_MIN_SIGNIFICANCE = 3.0
+PM_CLIP_SIGMA = 4.0  # drop position outliers beyond this (after error rescaling)
+PM_MAX_CLIP_FRACTION = 0.2
+SPECTRUM_BINS = 102
+SPECTRUM_RANGE_UM = (0.75, 5.0)

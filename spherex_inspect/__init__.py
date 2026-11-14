@@ -8,12 +8,13 @@ import asyncio
 from dataclasses import dataclass, field
 
 from . import intake, reporting
+from .aggregation import aggregate
 from .discovery import FrameDiscovery
 from .measurement import measure
-from .models import Cutout, FrameMeasurement, FrameRef, FramesResponse, InspectRequest, Target
+from .models import Cutout, FrameMeasurement, FrameRef, FramesResponse, InspectRequest, InspectResponse, Target
 from .retrieval import CutoutRetrieval
 
-__all__ = ["inspect_frames", "discover_and_fetch", "measure_frames", "get_discovery", "get_retrieval"]
+__all__ = ["inspect_point", "inspect_frames", "discover_and_fetch", "measure_frames", "get_discovery", "get_retrieval"]
 
 _discovery: FrameDiscovery | None = None
 _retrieval: CutoutRetrieval | None = None
@@ -82,3 +83,16 @@ async def measure_frames(req: InspectRequest) -> tuple[FetchResult, list[FrameMe
     fetched = await discover_and_fetch(req)
     measurements = await asyncio.to_thread(lambda: [measure(c, fetched.target) for c in fetched.cutouts])
     return fetched, measurements
+
+
+async def inspect_point(req: InspectRequest) -> InspectResponse:
+    """Full pipeline (Field Context arrives in build step 5)."""
+    fetched, measurements = await measure_frames(req)
+    summary = aggregate(measurements)
+    warnings = list(fetched.warnings)
+    if fetched.target.include_context:
+        warnings.append("context: field context is not implemented yet (build step 5)")
+    if summary.quality.n_usable == 0 and summary.spectrum_flagged:
+        warnings.append("summary: no usable flux samples; detected samples are flagged "
+                        "(e.g. saturated) and listed in spectrum_flagged")
+    return reporting.inspect_response(fetched.target, fetched.cutouts, measurements, summary, warnings)

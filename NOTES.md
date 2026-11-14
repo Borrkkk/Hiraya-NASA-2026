@@ -120,3 +120,50 @@ Findings from live calls that differ from, or add to, `SPHEREX_POINT_INSPECTION_
   comparison) should either fit parallax or compare against a parallax-corrected prediction.
 - IRSA TAP (`list_collections`) failed 3× in a row once; Discovery now falls back to the last
   successful collections list stored in the disk cache.
+
+## Step 4 — Time-Series Aggregation
+
+### Contract changes (proposed — please review)
+- `PointSummary.spectrum_flagged`: detected samples whose flux was rejected (e.g. saturated),
+  each with its `flags`, for display only. Without it Barnard's Star (saturated in every frame)
+  has no spectrum to plot at all. `spectrum` and `spectrum_binned` use usable samples only.
+- `PointSummary.proper_motion_fit` + `proper_motion_note`: the fit is always returned; `proper_motion`
+  is set only when it passes the brief's thresholds, and the note says why it didn't.
+- `ProperMotion` gained per-component errors, `pm_total`, `position_angle_deg`, `baseline_days`,
+  `n_used`, `n_rejected`, `reduced_chi2`, `ref_epoch_mjd`.
+- `PositionSample` gained `frame_id`, `detector`, `used_in_fit`. `SpectrumSample` gained
+  `bandwidth_um`, `detector`, `flags`. `QualitySummary` gained `n_detected`, `n_position_usable`,
+  `n_failed`.
+
+### Choices
+- PM fit: weighted LSQ of tangent-plane offsets (RA·cosδ, δ) vs time, per axis. Errors scaled by
+  √(reduced χ²) when > 1, so underestimated per-frame errors don't inflate the significance.
+  Iterative 4σ outlier rejection, capped at 20% of points. Reported only if baseline ≥ 150 d,
+  ≥ 6 detections used, and |pm|/σ ≥ 3 (brief §7).
+- The fit does not model parallax (0.55″ for Barnard's). Over a ~1.1 yr baseline this biases the
+  pm by at most a few %; fitting parallax is a later refinement.
+- `first_position` / `latest_position` = earliest / latest position used in the fit.
+- Spectrum and light curve include forced-photometry non-detections that are flux-usable.
+- Variability is left empty until build step 7.
+- `GET /inspect` now runs the whole pipeline up to aggregation; `context` is null with a warning
+  until step 5.
+- Live tests now use the real `.cache/` (offline tests stay isolated), so the demo targets stay warm.
+
+### Live results (2026-11-14) — done check passed
+- `inspect_point` on Barnard's Star (Gaia position at 2026.0, default `max_frames=200` of 358):
+  199/200 cutouts, 199 detected, 187 position-usable, **0 flux-usable** (saturated everywhere).
+  ~2.5 min cold.
+- **|pm| = 10363 ± 268 mas/yr (38.7σ) vs Gaia 10393 → 0.3% off.** PA 349.5° vs Gaia 355.6°.
+  pm_dec 10190 ± 268 (Gaia 10362); **pm_ra −1886 ± 268 (Gaia −802), a 4σ bias in RA.**
+  Baseline 403 d, 0 rejected, reduced χ² 0.38 (the 1.5″ saturated floor is conservative in Dec).
+- RA bias diagnosis: **not parallax** (removing the 0.55″ parallax changes pm by ~0.1″/yr).
+  Not the NaN-masked cores (same bias with and without). Residuals vs Gaia: RA rms 1.25″, Dec
+  0.6″; frames at some detector rotation angles (MJD ≈ 61110–61165) sit ~+0.5″ off in RA. Likely
+  an orientation-dependent centroid systematic for saturated stars (bloom/readout direction
+  rotating on the sky), or a WCS systematic. Needs an unsaturated high-pm star to separate the
+  two. The planned ePSF fit (masking saturated pixels) is the natural fix.
+- `spectrum` empty, `spectrum_flagged` 199 samples (all saturated) — the warning says so.
+- IRSA SIA returned 502 for one collection (DR1 or a `_deep`) in 2 of 4 runs after retries.
+  When DR1 drops out, the baseline shrinks to QR3's ~40 days and the pm is (correctly) withheld
+  by the baseline gate; the response is `partial` with a warning. This happens often enough
+  that a short SIA-result cache (raw rows, a few hours) is worth adding.

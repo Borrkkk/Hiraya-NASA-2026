@@ -129,6 +129,9 @@ class SpectrumSample(BaseModel):
     flux: float  # Jy
     err: float  # Jy
     frame_id: str
+    bandwidth_um: float | None = None
+    detector: int | None = None
+    flags: list[str] = Field(default_factory=list)  # set on spectrum_flagged samples
 
 
 class BinnedSpectrumSample(BaseModel):
@@ -143,13 +146,25 @@ class PositionSample(BaseModel):
     ra: float
     dec: float
     err: float  # arcsec
+    frame_id: str | None = None
+    detector: int | None = None
+    used_in_fit: bool = True  # False when rejected as an outlier by the pm fit
 
 
 class ProperMotion(BaseModel):
     pm_ra_cosdec: float  # mas/yr
     pm_dec: float  # mas/yr
-    err: float  # mas/yr (total)
-    significance: float  # |pm| / sigma
+    err: float  # mas/yr, 1-sigma error on the total |pm|
+    significance: float  # |pm| / err
+    pm_ra_cosdec_err: float | None = None
+    pm_dec_err: float | None = None
+    pm_total: float | None = None  # mas/yr
+    position_angle_deg: float | None = None  # east of north
+    baseline_days: float | None = None
+    n_used: int | None = None
+    n_rejected: int | None = None
+    reduced_chi2: float | None = None
+    ref_epoch_mjd: float | None = None
 
 
 class LightCurveSample(BaseModel):
@@ -171,17 +186,25 @@ class BandVariability(BaseModel):
 
 class QualitySummary(BaseModel):
     n_frames: int
-    n_usable: int
+    n_usable: int  # flux-usable
+    n_detected: int = 0
+    n_position_usable: int = 0
+    n_failed: int = 0  # cutouts that could not be measured
     flag_summary: dict[str, int] = Field(default_factory=dict)
 
 
 class PointSummary(BaseModel):
     spectrum: list[SpectrumSample] = Field(default_factory=list)
+    # Proposed: detected samples whose flux was rejected (e.g. saturated), for display only.
+    spectrum_flagged: list[SpectrumSample] = Field(default_factory=list)
     spectrum_binned: list[BinnedSpectrumSample] = Field(default_factory=list)
     positions: list[PositionSample] = Field(default_factory=list)
     first_position: PositionSample | None = None
     latest_position: PositionSample | None = None
     proper_motion: ProperMotion | None = None
+    # Fit result even when below the reporting thresholds (why pm was not reported).
+    proper_motion_fit: ProperMotion | None = None
+    proper_motion_note: str | None = None
     light_curve: list[LightCurveSample] = Field(default_factory=list)
     variability: list[BandVariability] = Field(default_factory=list)
     quality: QualitySummary
