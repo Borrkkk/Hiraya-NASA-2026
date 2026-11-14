@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+/*
+ * Pulsr design tokens, from the Pulsr design system (tokens.json, Night theme).
+ * Source: https://claude.ai/artifact/BqqsFrXm1DkwZZpRxrhUJ5
+ *
+ * Tailwind's default colour palette and type scale are cleared, so only Pulsr
+ * tokens exist: bg-surface, text-ink-secondary, text-h2, rounded-lg, etc.
+ * Spacing keeps Tailwind's 4px step, which is Pulsr's grid: p-6 = space-6 = 24px.
+ */
+@theme {
+  /* Colour: surfaces (depth comes from these steps, never shadows) */
+  --color-*: initial;
+  --color-ground: #0e1013;
+  --color-surface: #15181d;
+  --color-raised: #1c2027;
+  --color-overlay: #242932;
+  --color-sky: #050608; /* image wells only */
+  --color-scrim: #0e1013b8;
+  --color-line: #e8eaed14;
+  --color-line-strong: #e8eaed24;
+
+  /* Colour: text. ink-muted passes only on ground and surface. */
+  --color-ink: #e8eaed;
+  --color-ink-secondary: #a3a9b3;
+  --color-ink-muted: #7c838e;
+
+  /* Colour: actions. Primary is off-white so ember stays rare. */
+  --color-primary: #e8eaed;
+  --color-primary-hover: #ffffff;
+  --color-on-primary: #0e1013;
+
+  /* Colour: ember, the one accent. Reticle, selection, focus, unexplained. */
+  --color-ember: #ff6b3d;
+  --color-ember-hover: #ff825a;
+  --color-on-ember: #0e1013;
+  --color-ember-wash: #2a1b16;
+  --color-ember-line: #ff6b3d66;
+  --color-ember-band: #ff6b3d24;
+
+  /* Colour: verdicts, the only semantic colours */
+  --color-explained: #5fb3a6;
+  --color-artifact: #8a919c;
+  --color-unexplained: #ff6b3d;
+
+  /* Colour: avatar tones */
+  --color-face-1: #c9b8f0;
+  --color-face-2: #9ed3c8;
+  --color-face-3: #f2c7a5;
+  --color-face-4: #b5c8f2;
+  --color-on-face: #0e1013;
+
+  /* Colour: sky renders only, never chrome */
+  --color-star-hot: #cfe0ff;
+  --color-star-white: #e8eeff;
+  --color-star-warm: #fff1de;
+  --color-star-cool: #ffd0a6;
+  --color-star-cold: #ff9f75;
+  --color-brown-dwarf: #ff8a5c;
+
+  /* Type: Interface (sans) */
+  --text-*: initial;
+  --text-display: 64px;
+  --text-display--line-height: 72px;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 500;
+  --text-h1: 40px;
+  --text-h1--line-height: 48px;
+  --text-h1--letter-spacing: -0.015em;
+  --text-h1--font-weight: 500;
+  --text-h2: 28px;
+  --text-h2--line-height: 36px;
+  --text-h2--letter-spacing: -0.01em;
+  --text-h2--font-weight: 500;
+  --text-h3: 20px;
+  --text-h3--line-height: 28px;
+  --text-h3--font-weight: 500;
+  --text-body: 16px;
+  --text-body--line-height: 24px;
+  --text-body-sm: 15px;
+  --text-body-sm--line-height: 22px;
+  --text-small: 14px;
+  --text-small--line-height: 20px;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-caption--letter-spacing: 0.01em;
+  --text-caption--font-weight: 500;
+
+  /* Type: Measured (pair with font-mono tabular-nums) */
+  --text-mono: 13px;
+  --text-mono--line-height: 20px;
+  --text-mono-sm: 11px;
+  --text-mono-sm--line-height: 16px;
+  --text-mono-figure: 32px;
+  --text-mono-figure--line-height: 40px;
+
+  /* Type: Slides, 1920×1080, nothing below 20px */
+  --text-slide-title: 104px;
+  --text-slide-title--line-height: 108px;
+  --text-slide-title--letter-spacing: -0.025em;
+  --text-slide-title--font-weight: 500;
+  --text-slide-h: 72px;
+  --text-slide-h--line-height: 80px;
+  --text-slide-h--letter-spacing: -0.02em;
+  --text-slide-h--font-weight: 500;
+  --text-slide-body: 32px;
+  --text-slide-body--line-height: 44px;
+
+  /* Radius */
+  --radius-*: initial;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Focus: a ground gap, then a 2px ember ring */
+  --shadow-focus: 0 0 0 2px #0e1013, 0 0 0 4px #ff6b3d;
+
+  /* Motion: one curve, four durations. Use as duration-(--dur-move). */
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-feedback: 120ms;
+  --dur-move: 200ms;
+  --dur-enter: 320ms;
+  --dur-blink: 600ms;
+}
+
+/* Fonts come from next/font in layout.tsx. */
+@theme inline {
+  --font-sans: var(--font-instrument-sans), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0ms !important;
+      animation-duration: 0ms !important;
+    }
+  }
+}
+
+/* Hide a scroller's bar (the news carousel). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* A quiet scrollbar for the feed. */
+@utility scroll-pulsr {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}

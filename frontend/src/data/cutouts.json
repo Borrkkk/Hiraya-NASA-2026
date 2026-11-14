@@ -1,0 +1,56 @@
+{
+  "surveys": {
+    "wise": {
+      "label": "WISE",
+      "url": "https://irsa.ipac.caltech.edu/data/hips/CDS/AllWISE/RGB-W4-W2-W1"
+    },
+    "dss": {
+      "label": "DSS2",
+      "url": "https://irsa.ipac.caltech.edu/data/hips/CDS/DSS2/color"
+    },
+    "2mass": {
+      "label": "2MASS",
+      "url": "https://irsa.ipac.caltech.edu/data/hips/CDS/2MASS/Color"
+    }
+  },
+  "width": 800,
+  "height": 500,
+  "quality": 0.72,
+  "cutouts": [
+    {
+      "id": "luhman-16",
+      "survey": "wise",
+      "ra": 162.3153,
+      "dec": -53.3179,
+      "fov": 0.3
+    },
+    {
+      "id": "proxima",
+      "survey": "wise",
+      "ra": 217.4289,
+      "dec": -62.6795,
+      "fov": 0.4
+    },
+    {
+      "id": "barnard",
+      "survey": "wise",
+      "ra": 269.4496,
+      "dec": 4.7244,
+      "fov": 0.4
+    },
+    {
+      "id": "betelgeuse",
+      "survey": "wise",
+      "ra": 88.7929,
+      "dec": 7.4071,
+      "fov": 1.0
+    },
+    {
+      "id": "eagle",
+      "survey": "dss",
+      "ra": 274.7,
+      "dec": -13.8167,
+      "fov": 0.7
+    }
+  ]
+}
