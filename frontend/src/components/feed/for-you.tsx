@@ -1,22 +1,25 @@
-import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { FaceStack, SkyImage } from "@/components/ui";
+import { SkyImage } from "@/components/ui";
 import { exploreHref } from "@/lib/explore";
 import { forYou } from "@/lib/feed/mock";
-import { formatCoords } from "@/lib/sky/format";
 import { getObject } from "@/lib/sky/catalog";
+import { formatCoords } from "@/lib/sky/format";
 import { FeedSection } from "./section";
 
-/** One large pick with the reticle on its object, then a row of smaller ones. */
+/**
+ * The one image-led moment in the feed: a hero with the reticle on its object,
+ * then two quiet rows. Everything below it is calmer on purpose, so the eye
+ * lands here first and the sky behind stays the brightest thing on screen.
+ */
 export function ForYou() {
   const { hero, picks, basis } = forYou;
   const heroObj = getObject(hero.objectId);
 
   return (
-    <FeedSection title="For you" subtitle={basis}>
+    <FeedSection title="For you" meta={basis}>
       <Link
         href={exploreHref({ q: heroObj.name, ra: heroObj.ra, dec: heroObj.dec, fov: hero.fov })}
-        className="group overflow-hidden rounded-lg border border-line bg-surface transition-colors duration-(--dur-feedback) ease-standard hover:border-line-strong"
+        className="group flex flex-col overflow-hidden rounded-lg bg-raised transition-colors duration-(--dur-feedback) ease-standard hover:bg-overlay"
       >
         <div className="relative">
           <SkyImage
@@ -28,46 +31,38 @@ export function ForYou() {
             priority
           />
           {/* Ground-to-transparent scrim keeps the caption readable. */}
-          <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-linear-to-t from-ground via-ground/80 to-transparent px-4 pb-3 pt-16">
+          <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-linear-to-t from-raised via-raised/80 to-transparent px-4 pb-3 pt-16">
             <p className="font-mono text-mono-sm tabular-nums text-ink-secondary">
               {formatCoords(heroObj.ra!, heroObj.dec!)}
             </p>
-            <h4 className="text-h2 text-ink">{heroObj.name}</h4>
+            <h4 className="text-h3 text-ink">{heroObj.name}</h4>
           </div>
         </div>
-        <div className="flex flex-col gap-3 p-4">
+        <div className="flex flex-col gap-2 p-4">
           <p className="text-body-sm text-ink-secondary">{hero.why}</p>
-          <div className="flex items-center justify-between gap-3">
-            <FaceStack people={hero.social.people}>{hero.social.text}</FaceStack>
-            <ChevronRight
-              size={18}
-              strokeWidth={1.5}
-              aria-hidden="true"
-              className="shrink-0 text-ink-secondary transition-colors duration-(--dur-feedback) ease-standard group-hover:text-ink"
-            />
-          </div>
+          <p className="text-small text-ink-secondary">{hero.social}</p>
         </div>
       </Link>
 
-      <ul className="grid grid-cols-3 gap-3">
+      <ul className="flex flex-col">
         {picks.map((p) => {
           const o = getObject(p.objectId);
           return (
             <li key={p.objectId}>
               <Link
                 href={exploreHref({ q: o.name, ra: o.ra, dec: o.dec, fov: p.fov })}
-                className="group flex flex-col gap-2 rounded-lg"
+                className="grid grid-cols-[48px_1fr] items-center gap-3 rounded-lg p-2 transition-colors duration-(--dur-feedback) ease-standard hover:bg-raised"
               >
                 <SkyImage
                   cutout={p.cutout}
-                  alt={`${o.name} in infrared`}
-                  className="aspect-square rounded-md border border-line transition-colors duration-(--dur-feedback) ease-standard group-hover:border-line-strong"
-                  sizes="160px"
+                  alt=""
+                  className="size-12 rounded-xs"
+                  sizes="48px"
                   tag={false}
                 />
-                <span className="flex flex-col px-0.5">
-                  <span className="text-small text-ink">{o.name}</span>
-                  <span className="line-clamp-2 text-caption text-ink-secondary">{p.short}</span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate text-body-sm text-ink">{o.name}</span>
+                  <span className="truncate text-small text-ink-secondary">{p.short}</span>
                 </span>
               </Link>
             </li>

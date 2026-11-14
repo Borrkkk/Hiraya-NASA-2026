@@ -4,24 +4,20 @@ import { News } from "./news";
 import { Popular } from "./popular";
 
 /**
- * The exploration feed. A solid panel over the map: on desktop a column on the
- * right, on phones a sheet over the lower part of the screen. Depth comes from
- * the surface step and a hairline, never a shadow or blur.
+ * The exploration feed: a solid `surface` panel on the page ground, one step
+ * lighter than everything around it, with a strong hairline. Cards inside are
+ * one step lighter again (`raised`), so there are always two clear edges
+ * between the feed and the page, whatever the sky beside it is doing.
  */
 export function FeedPanel() {
   return (
     <aside
       aria-label="Where to look"
-      className="absolute z-20 flex flex-col overflow-hidden border border-line bg-ground max-lg:inset-x-0 max-lg:bottom-0 max-lg:h-[56dvh] max-lg:rounded-t-xl max-lg:border-b-0 lg:bottom-6 lg:right-6 lg:top-[72px] lg:w-[440px] lg:rounded-xl"
+      className="flex h-full flex-col overflow-hidden rounded-xl border border-line-strong bg-surface"
     >
       <div className="scroll-pulsr flex-1 overflow-y-auto overscroll-contain px-4 pb-8">
-        <header className="px-1 pb-5 pt-5">
-          <h2 className="text-h2 text-ink">Where to look</h2>
-          <p className="text-body-sm text-ink-secondary">
-            Start anywhere. Every patch here is real sky.
-          </p>
-        </header>
-        <div className="flex flex-col gap-8">
+        <h2 className="px-1 pb-5 pt-5 text-h2 text-ink">Where to look</h2>
+        <div className="flex flex-col gap-10">
           <ForYou />
           <Popular />
           <News />

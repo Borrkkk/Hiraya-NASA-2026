@@ -137,7 +137,10 @@ export function SkySearch({ className }: { className?: string }) {
 
   return (
     <div ref={rootRef} className={cn("relative", className)}>
-      <div className="flex h-11 items-center gap-2.5 rounded-md border border-line-strong bg-surface pl-3 pr-1 text-ink-muted focus-within:shadow-focus">
+      {/* `raised` with the strong hairline, so the box is clearly lighter than
+          the ground it sits on. ink-muted only passes on ground and surface, so
+          raised uses secondary. */}
+      <div className="flex h-11 items-center gap-2.5 rounded-md border border-line-strong bg-raised pl-3 pr-1 text-ink-secondary focus-within:shadow-focus">
         <Search size={16} strokeWidth={1.5} aria-hidden="true" className="shrink-0" />
         <input
           ref={inputRef}
@@ -159,7 +162,7 @@ export function SkySearch({ className }: { className?: string }) {
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          className="min-w-0 flex-1 bg-transparent text-body-sm text-ink shadow-none outline-none placeholder:text-ink-muted"
+          className="min-w-0 flex-1 bg-transparent text-body-sm text-ink shadow-none outline-none placeholder:text-ink-secondary"
         />
         <kbd
           aria-hidden="true"
@@ -181,7 +184,7 @@ export function SkySearch({ className }: { className?: string }) {
             "transition-colors duration-(--dur-feedback) ease-standard",
             filtersOpen || kinds.length
               ? "bg-ember-wash text-ink"
-              : "text-ink-secondary hover:bg-raised hover:text-ink",
+              : "text-ink-secondary hover:bg-overlay hover:text-ink",
           )}
         >
           <SlidersHorizontal size={16} strokeWidth={1.5} aria-hidden="true" />

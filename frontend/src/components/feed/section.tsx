@@ -1,18 +1,18 @@
-/** A feed section: a short title and one line on why these are here. */
+/** A feed section: a short title, and at most a few words of meta on the right. */
 export function FeedSection({
   title,
-  subtitle,
+  meta,
   children,
 }: {
   title: string;
-  subtitle?: string;
+  meta?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-3">
-      <header className="px-1">
+      <header className="flex items-baseline justify-between gap-4 px-1">
         <h3 className="text-body font-medium text-ink">{title}</h3>
-        {subtitle && <p className="text-small text-ink-secondary">{subtitle}</p>}
+        {meta && <p className="text-small text-ink-muted">{meta}</p>}
       </header>
       {children}
     </section>

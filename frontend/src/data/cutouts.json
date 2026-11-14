@@ -25,13 +25,6 @@
       "fov": 0.3
     },
     {
-      "id": "ross-128",
-      "survey": "wise",
-      "ra": 176.9358,
-      "dec": 0.8044,
-      "fov": 0.4
-    },
-    {
       "id": "proxima",
       "survey": "wise",
       "ra": 217.4289,
@@ -51,34 +44,6 @@
       "ra": 88.7929,
       "dec": 7.4071,
       "fov": 1.0
-    },
-    {
-      "id": "orion",
-      "survey": "dss",
-      "ra": 83.8221,
-      "dec": -5.3911,
-      "fov": 1.6
-    },
-    {
-      "id": "carina",
-      "survey": "dss",
-      "ra": 161.283,
-      "dec": -59.868,
-      "fov": 2.2
-    },
-    {
-      "id": "galactic-centre",
-      "survey": "2mass",
-      "ra": 266.4168,
-      "dec": -29.0078,
-      "fov": 2.5
-    },
-    {
-      "id": "m31",
-      "survey": "dss",
-      "ra": 10.6847,
-      "dec": 41.2687,
-      "fov": 3.2
     },
     {
       "id": "eagle",

@@ -255,17 +255,10 @@ export function SkyBackdrop({ className }: { className?: string }) {
         />
       )}
 
-      {/* Ground-to-transparent scrim so the header stays readable over bright
-          sky. The one gradient Pulsr allows. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-b from-ground/90 to-transparent"
-      />
 
       {ready && (
         <>
-          {/* The reticle sits on the centre of the stage, which is the middle
-              of the free part of the screen, not under the feed. */}
+          {/* The reticle sits on the centre of the sky window. */}
           <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <Reticle
               size={56}
@@ -298,7 +291,7 @@ export function SkyHint({ className }: { className?: string }) {
   return (
     <p
       className={cn(
-        "pointer-events-none inline-flex items-center gap-2 rounded-md bg-scrim px-3 py-2 text-small text-ink-secondary",
+        "pointer-events-none inline-flex items-center gap-2 rounded-md border border-line-strong bg-ground/90 px-3 py-2 text-small text-ink-secondary",
         className,
       )}
     >
