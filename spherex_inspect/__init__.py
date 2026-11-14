@@ -4,14 +4,16 @@ No science, no I/O details, no formatting.
 """
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 
 from . import intake, reporting
 from .discovery import FrameDiscovery
-from .models import Cutout, FrameRef, FramesResponse, InspectRequest, Target
+from .measurement import measure
+from .models import Cutout, FrameMeasurement, FrameRef, FramesResponse, InspectRequest, Target
 from .retrieval import CutoutRetrieval
 
-__all__ = ["inspect_frames", "discover_and_fetch", "get_discovery", "get_retrieval"]
+__all__ = ["inspect_frames", "discover_and_fetch", "measure_frames", "get_discovery", "get_retrieval"]
 
 _discovery: FrameDiscovery | None = None
 _retrieval: CutoutRetrieval | None = None
@@ -72,3 +74,11 @@ async def discover_and_fetch(req: InspectRequest) -> FetchResult:
     if n_failed:
         warnings.append(f"retrieval: {n_failed} of {len(cutouts)} cutouts failed to download")
     return FetchResult(target, result.frames, cutouts, result.n_found, warnings)
+
+
+async def measure_frames(req: InspectRequest) -> tuple[FetchResult, list[FrameMeasurement]]:
+    """Intake → Discovery → Retrieval → Measurement (one measurement per frame, same order;
+    failed cutouts give an empty measurement with a note)."""
+    fetched = await discover_and_fetch(req)
+    measurements = await asyncio.to_thread(lambda: [measure(c, fetched.target) for c in fetched.cutouts])
+    return fetched, measurements

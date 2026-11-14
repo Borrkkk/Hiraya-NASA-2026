@@ -117,7 +117,11 @@ class FrameMeasurement(BaseModel):
     snr: float | None = None
     flag_bits: int = 0
     flag_names: list[str] = Field(default_factory=list)
-    usable: bool = False
+    usable: bool = False  # flux usable (no unusable flag in the aperture, finite flux)
+    # Proposed (NOTES.md): position usable even when the flux is not (e.g. a saturated star).
+    position_usable: bool = False
+    aperture_correction: float | None = None  # fraction of ePSF flux inside the aperture
+    note: str | None = None  # why nothing could be measured, when that happens
 
 
 class SpectrumSample(BaseModel):

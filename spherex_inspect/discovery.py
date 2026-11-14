@@ -245,14 +245,33 @@ def _evenly_spaced(items: list, k: int) -> list:
 # --------------------------------------------------------------------------- #
 
 
+_COLLECTIONS_CACHE_KEY = "sia:collections:v1"
+
+
 class FrameDiscovery:
-    def __init__(self, backend: SiaBackend | None = None):
+    def __init__(self, backend: SiaBackend | None = None, cache=None):
         self.backend = backend or IrsaSiaBackend()
+        self._cache = cache
         self._collections: list[str] | None = None
+
+    def _get_cache(self):
+        if self._cache is None:
+            from .cache import get_cache
+
+            self._cache = get_cache()
+        return self._cache
 
     async def collections(self) -> list[str]:
         if self._collections is None:
-            avail = await _retry(self.backend.list_collections)
+            try:
+                avail = await _retry(self.backend.list_collections)
+                self._get_cache().set(_COLLECTIONS_CACHE_KEY, list(avail))
+            except Exception as exc:
+                # IRSA's TAP listing 502s at times; fall back to the last list we saw.
+                avail = self._get_cache().get(_COLLECTIONS_CACHE_KEY)
+                if not avail:
+                    raise DiscoveryError(f"could not list SIA collections: {exc}") from exc
+                log.warning("SIA collection listing failed (%s); using cached list %s", exc, avail)
             chosen = select_collections(avail)
             if not chosen:
                 raise DiscoveryError(f"no SPHEREx frame collections found among {avail}")

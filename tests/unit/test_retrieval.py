@@ -172,7 +172,7 @@ FIXTURES = Path(__file__).parent.parent / "fixtures"
 MANIFEST = json.loads((FIXTURES / "manifest.json").read_text())
 
 
-@pytest.mark.parametrize("name", sorted(MANIFEST))
+@pytest.mark.parametrize("name", sorted(k for k in MANIFEST if not k.startswith("_")))
 def test_parse_real_fixture(name):
     m = MANIFEST[name]
     f = FrameRef(**m["frame"])

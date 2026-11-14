@@ -152,3 +152,24 @@ async def test_cap_warning():
     t = to_target(InspectRequest(ra=1, dec=2, max_frames=12))
     res, warnings = await d.discover(t)
     assert len(res.frames) == 12 and res.n_found == 60 and any("capped" in w for w in warnings)
+
+
+async def test_collections_fall_back_to_cached_list(monkeypatch, tmp_path):
+    import diskcache
+
+    monkeypatch.setattr("spherex_inspect.config.SIA_BACKOFF_S", 0)
+    cache = diskcache.Cache(str(tmp_path / "dc"))
+    rows = {"spherex_dr1": [make_row("a", 1, 61000.0, "spherex_dr1")], "spherex_qr2": []}  # fake also lists qr2
+    assert await FrameDiscovery(FakeBackend(rows), cache=cache).collections() == ["spherex_dr1", "spherex_qr2"]
+
+    class Down(FakeBackend):
+        def list_collections(self):
+            raise ConnectionError("502 Proxy Error")
+
+    # A fresh instance (e.g. after a restart) with IRSA's listing down uses the cached list.
+    d = FrameDiscovery(Down(rows), cache=cache)
+    res, _ = await d.discover(TARGET)
+    assert res.collections == ["spherex_dr1", "spherex_qr2"] and len(res.frames) == 1
+
+    with pytest.raises(DiscoveryError):
+        await FrameDiscovery(Down(rows), cache=diskcache.Cache(str(tmp_path / "empty"))).collections()

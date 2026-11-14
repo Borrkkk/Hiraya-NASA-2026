@@ -52,7 +52,71 @@ Findings from live calls that differ from, or add to, `SPHEREX_POINT_INSPECTION_
 - Any per-frame error (5xx, transport, truncated/invalid FITS, WCS error) is retried 3× with
   10 s × attempt backoff; 4xx other than 429 fail at once. Invalid bytes are never cached;
   a corrupt cache entry is dropped and re-downloaded.
-- Fixtures (`tests/fixtures/`, 11 MB total — each 0.02° cutout is ~4 MB because of EPSF):
-  `barnard_first_d1` (MJD 60914.2), `barnard_latest_d1` (61285.3; same detector, Δt ≈ 371 d,
-  Barnard's should move ≈ 10.5″ ≈ 1.7 px), `barnard_latest_d6` (61303.2, 4.4–5.0 µm).
-  `manifest.json` holds each frame's `FrameRef`.
+- Fixtures: superseded in step 3 (see below).
+
+## Step 3 — Frame Measurement (verified 2026-11-14)
+
+### Contract changes (proposed — please review)
+- **`FrameMeasurement.position_usable` added.** Barnard's Star saturates every SPHEREx detector:
+  the core pixels carry `OVERFLOW` + `BLOOM` (+ `TRANSIENT`/`SUR_ERROR`), sometimes a NaN pixel.
+  By the brief's §4 rules every Barnard frame is flux-unusable — correct for the flux — but its
+  centroid is still good (30 live frames: median 1.08″, max 3.91″ from Gaia). Without a separate
+  position flag, step 4 could never measure Barnard's proper motion.
+  `usable` keeps the brief's meaning (flux). `position_usable` = detected, not a peak-pixel
+  fallback, and none of `PERSIST, GHOST, GHOST_FPA, GHOST_EXT, STREAK, HALO, SNOWBALL` in the
+  aperture (`config.FLAGS_POSITION_UNUSABLE`). Saturation flags are allowed for position.
+- `FrameMeasurement.aperture_correction` and `.note` (why nothing was measured) added.
+
+### Plan / brief corrections
+- **Barnard's Star has moved ≈ 276″ since J2000, not ≈ 100″** (10.36″/yr × 26.7 yr). A cutout
+  centred on SIMBAD's J2000 position does not contain the star at all. The step-2 fixtures were
+  centred there, so they were replaced. The old D1 one is kept as `blank_badpix_d1.fits` (blank
+  field with a TRANSIENT/SUR_ERROR/NONFUNC bad pixel → tests non-detection).
+- **Design gap to decide (affects the UI + Intake):** for any fast mover, the coordinate a user
+  clicks in Aladin depends on the epoch of the survey image shown (DSS ≈ 1950s, 2MASS ≈ 2000).
+  Measurement only searches ±2 px (±12″) around the target, so a click on Barnard's Star in an
+  old image finds nothing. Options: (a) the UI sends a Gaia-epoch position; (b) Intake resolves
+  the nearest high-pm Gaia star and propagates it (but Intake must not talk to catalogs);
+  (c) a wider search box, which picks up neighbours. Not changed yet.
+- EPSF row count varies by file: 441 in one D1 file, 451 in another. Code picks the nearest
+  `(XCENTER, YCENTER)` row and never assumes a grid size.
+- Brief §3 says to rebin the ePSF to native pixels before the 2 px aperture; it is integrated
+  on the ×5 grid instead (radius 10 oversampled px). Same result for a centred source.
+
+### Measurement choices (beyond the brief)
+- Detector coordinates for the ePSF lookup come from the `A` WCS (`WCSNAMEA = '0-based active
+  pixel coordinates'`): `det = cutout_px + 1 − CRPIXnA`.
+- **Detection = peak SNR ≥ 5 in the 5×5 box AND the brightest valid pixel is a local maximum**
+  over its valid 8-neighbours. Without the local-max rule a faint neighbour's wing on the box
+  edge counted as a detection (blank fixture). Masked pixels are skipped, so a NaN saturated core
+  still counts. The source is located by the brightest *flux* pixel, not the SNR peak (for
+  saturated stars the variance peaks at the core, so the SNR peak is off-centre).
+- Pixels with `NONFUNC, MISSING_DATA, HOT, COLD` or non-finite values are masked from the
+  background, the centroid fit and the aperture sum; any masked pixel in the aperture adds
+  `MASKED_PIXELS` to `flag_names` and makes the flux unusable.
+- Background annulus uses pixels with no flags except `FULLSAMPLE` (so `SOURCE` pixels, i.e.
+  other stars, are excluded); falls back to sigma-clipped finite pixels.
+- **Position error floor 1.5″ when `OVERFLOW/BLOOM/NONLINEAR` are in the aperture** (0.3″
+  otherwise, per brief). The SNR formula gives 0.3″ for Barnard's but the real scatter is ~1–4″;
+  without this, step 4's pm significance would be wildly overstated.
+- Non-detections still get a forced-photometry flux at the target pixel and can be `usable`
+  (a valid flux sample for faint sources like WISE 0855); `ra_meas/dec_meas` stay null.
+- Pixel-phase error: an exact 2 px aperture on the undersampled PSF (FWHM ≈ 1.2 px) loses a few
+  % for off-centre sources (2.4% in the synthetic test). The planned ePSF fit fixes this.
+
+### Live results
+- 30 Barnard frames (all 6 detectors, MJD 60902–61305): 30/30 cutouts, **30/30 detected**,
+  separation from Gaia-propagated position median 1.08″, max 3.91″ (< 1 px = 6.15″). 29/30
+  position-usable (one `PERSIST`). 0/30 flux-usable (saturated). Fluxes 2–7 Jy, the right order
+  for a J ≈ 5.2 M dwarf (saturated, so lower bounds).
+- Fixtures now (`tests/fixtures/`, 15 MB): `barnard_first_d1` (MJD 60914.2), `barnard_latest_d1`
+  (61285.3, Δt ≈ 371 d), `barnard_latest_d6` (61272.9), all 0.05° centred on Barnard's Gaia
+  position propagated to 2026.0; `blank_badpix_d1` (old J2000-centred one). `manifest.json`
+  holds each `FrameRef` and the Gaia DR3 astrometry (`_gaia_dr3_barnard`).
+
+### For step 4
+- Gaia propagation with `apply_space_motion` gives a **barycentric** position. Barnard's
+  parallax is 0.547″, comparable to the per-frame scatter, so the pm fit (and the step-5
+  comparison) should either fit parallax or compare against a parallax-corrected prediction.
+- IRSA TAP (`list_collections`) failed 3× in a row once; Discovery now falls back to the last
+  successful collections list stored in the disk cache.
