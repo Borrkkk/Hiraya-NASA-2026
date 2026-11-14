@@ -178,3 +178,35 @@ def test_step5_barnard_context_matched(barnard_run):
     # SIMBAD's canonical spelling is "Barnard's star" (main_id "NAME Barnard's star").
     assert ctx.best_match.name.lower() == "barnard's star"
     assert ctx.best_match.separation_arcsec < 6.15
+
+
+# --------------------------------------------------------------------------- #
+# Step 6 — solar system
+# --------------------------------------------------------------------------- #
+
+# Found live on 2026-11-14 (Horizons ephemeris from SPHEREx + SIA footprint check):
+# (4) Vesta, V = 7.3, is inside this frame at its mid-time.
+VESTA = {"frame_id": "2025W32_1A_0105_1D3", "t_mid": 60891.461818, "ra": 222.86623, "dec": -11.90754}
+
+
+def test_step6_asteroid_in_frame():
+    """The asteroid case: Vesta appears in solar_system_by_frame for the frame that contains it."""
+    import spherex_inspect
+
+    t0 = time.monotonic()
+    resp = asyncio.run(spherex_inspect.inspect_point(InspectRequest(
+        ra=VESTA["ra"], dec=VESTA["dec"], time_start=VESTA["t_mid"] - 0.5, time_end=VESTA["t_mid"] + 0.5)))
+    ctx = resp.context
+    print(f"\n{time.monotonic() - t0:.1f}s; frames {[f.frame_id for f in resp.frames]}")
+    print(f"status {ctx.status_by_source}")
+    for fid, bodies in ctx.solar_system_by_frame.items():
+        print(f"  {fid}: {[(b.name, round(b.separation_arcsec, 1), b.mags.get('V'), b.ids.get('observer')) for b in bodies]}")
+    print(f"verdict {ctx.verdict} best {ctx.best_match.name if ctx.best_match else None} note {ctx.note}")
+    bodies = ctx.solar_system_by_frame.get(VESTA["frame_id"], [])
+    vesta = [b for b in bodies if "Vesta" in b.name]
+    assert vesta, f"Vesta not listed for {VESTA['frame_id']}: {[b.name for b in bodies]}"
+    assert vesta[0].is_solar_system and vesta[0].object_class == "asteroid"
+    assert vesta[0].separation_arcsec < 6.15  # within one pixel of the target (= Horizons position)
+    assert vesta[0].mags["V"] < 17
+    # The detection in that frame IS Vesta: it must be matched, not called a discovery.
+    assert ctx.verdict == "matched" and "Vesta" in ctx.best_match.name, ctx.note

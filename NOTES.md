@@ -253,3 +253,54 @@ Measured before: offline suite 32 s; live suite several minutes (one run hung ~6
   - `pytest` — offline, ~2 s
   - `pytest -m live` — live, ~10 s warm
   - `SPHEREX_LIVE_COLD=1 pytest -m live` — adds the cold-download timing check
+
+## Step 6 — Field Context: solar system (verified 2026-11-14)
+
+### Plan change (please review): SkyBoT primary, JPL sb_ident fallback
+The brief has JPL `sb_ident` as primary and SkyBoT as fallback. Live timings make that
+impractical: **one two-pass `sb_ident` call took 91 s** (first pass alone 49 s, 18 s with
+`xobs=0,0,0`), and a request covers ~one exposure per 2 frames (100 calls at the default 200
+frames). **SkyBoT answered in 2.2 s.** So:
+- **Primary: IMCCE SkyBoT** cone search per exposure (geocentric observer `-loc=500`), positions
+  then **corrected to SPHEREx's own position** with an exact parallax shift (object distance
+  `dg` from SkyBoT, SPHEREx geocentric ICRF state from Horizons). On the Vesta test case the
+  geocentric position was 4.9″ off the Horizons-from-SPHEREx position; corrected, < 1.5″.
+- **Fallback: JPL sb_ident** (two-pass, `xobs` = SPHEREx state) for exposures where SkyBoT fails,
+  capped at 2 calls per request (`SB_IDENT_MAX_CALLS`).
+- One query per exposure (`obs_id`): the 6 detectors share time and target; results are listed
+  under every `frame_id` of that exposure. `solar_system_by_frame` holds non-empty frames only,
+  keyed by `frame_id` (the brief said `obs_id`; see step 1's `frame_id` note).
+- FOV = the cutout (cone radius = half-size × √2, then cut to the square); bodies fainter than
+  V = 22 are dropped (`SOLAR_MAX_V`).
+- SkyBoT outages are remembered for 15 min like the fixed catalogs.
+
+### VERIFY items resolved
+- **Horizons has SPHEREx**: `-163182` ("SPHEREx (spacecraft)", 2025-047E). Geocentric
+  distance ≈ 7030 km, speed ≈ 7.6 km/s. One batched call returns states for many times
+  (`TLIST`, chunks of 100); `TIME_TYPE='UT'` matters (default TDB moved the state ~600 km).
+- **`sb_ident` accepts `xobs=0,0,0`** (without velocity the rate columns are omitted).
+  `mpc-code=500` stays unused.
+- **sb_ident rate units are ″/h** — the response field names say `RA rate ("/h)`.
+- sb_ident `signature.version` = "1.1". Two-pass with the SPHEREx state put Vesta 0.47″ from
+  Horizons; the first pass returns ~6000 coarse rows over the whole sky (ignore it).
+- **SkyBoT returns HTTP 204 with an empty body when the field is empty.**
+- Apparent rates from SPHEREx are dominated by its own orbital motion (Vesta: SkyBoT geocentric
+  (−4.7, −11.4) ″/h vs Horizons-from-SPHEREx (−2.6, +9.9) ″/h). SkyBoT rates are geocentric
+  and are reported as such (`ids.observer`).
+
+### Done check passed (live)
+- Asteroid case found by search (Horizons ephemeris of Vesta from SPHEREx, days at 80–100° solar
+  elongation, SIA footprint check at the exact mid-time): **(4) Vesta, V = 7.3, in frame
+  `2025W32_1A_0105_1D3` at MJD 60891.461818, RA 222.86623, Dec −11.90754.**
+- `inspect_point` at that point for that day: `solar_system_by_frame` lists **4 Vesta for both
+  detectors of the exposure (D3, D6), 0.2″ from the Horizons position** (SkyBoT + SPHEREx
+  parallax correction), V 7.5 (SkyBoT). 6.7 s.
+
+### Contract / plan change (please review)
+- **A solar-system body in the frame of the latest measured position is now a match
+  candidate.** Before, the Vesta run said `no_known_match … candidate discovery` although the
+  detection *was* Vesta, because matching only used fixed-sky catalogs. Now it says
+  `matched → 4 Vesta`. `nearby` stays the fixed-sky list; asteroids in other frames don't count.
+
+### Timing
+- Full live suite: ~28 s with cold SkyBoT/Horizons lookups, **~6 s warm**. Offline: ~2.4 s.

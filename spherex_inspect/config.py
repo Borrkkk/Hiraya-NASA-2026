@@ -93,3 +93,14 @@ MATCH_IR_WINDOW_UM = 0.3
 MATCH_IR_SIGMA_MAG = 0.3
 # Zero points (Jy): 2MASS Ks (Cohen+2003), WISE W1/W2 (Jarrett+2011)
 IR_BANDS = {"Ks": (2.16, 666.7), "W1": (3.4, 309.54), "W2": (4.6, 171.79)}
+
+# Field Context — solar system (brief §5)
+SPHEREX_HORIZONS_ID = "-163182"  # VERIFIED: Horizons lookup "SPHEREx (spacecraft)", 2025-047E
+HORIZONS_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
+SKYBOT_URL = "https://ssp.imcce.fr/webservices/skybot/api/conesearch.php"
+SB_IDENT_URL = "https://ssd-api.jpl.nasa.gov/sb_ident.api"
+SOLAR_TIMEOUT_S = 30.0
+SB_IDENT_TIMEOUT_S = 150.0  # a two-pass call took 91 s live
+SB_IDENT_MAX_CALLS = 2  # per request, only when SkyBoT fails (each call ~1.5 min)
+SOLAR_CONCURRENCY = 4
+SOLAR_MAX_V = 22.0  # fainter bodies cannot show up in a single SPHEREx exposure

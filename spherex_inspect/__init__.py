@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 from . import intake, reporting
 from .aggregation import aggregate
-from .context import FieldContextService
+from .context import FieldContextService, default_service
 from .discovery import FrameDiscovery
 from .measurement import measure
 from .models import (
@@ -60,7 +60,7 @@ def set_retrieval(r: CutoutRetrieval | None) -> None:
 def get_context() -> FieldContextService:
     global _context
     if _context is None:
-        _context = FieldContextService()
+        _context = default_service()
     return _context
 
 
@@ -137,8 +137,8 @@ async def inspect_point(req: InspectRequest) -> InspectResponse:
 
     context: FieldContext | None = None
     if ctx_task is not None:
-        sources, status = await ctx_task
-        context = get_context().build(target, frames, sources, status, summary)
+        sources, status, solar = await ctx_task
+        context = get_context().build(target, frames, sources, status, summary, solar_by_frame=solar)
         failed = [k for k, v in status.items() if not v.startswith("ok")]
         if failed:
             warnings.append(f"context: catalog(s) failed: {', '.join(failed)}")
@@ -150,5 +150,5 @@ async def inspect_context(req: InspectRequest, t: float | str | None = None) -> 
     No pixels are read, so there is no measured source and no best match."""
     target = intake.to_target(req)
     t_mjd = intake.parse_time(t)
-    sources, status = await get_context().fetch(target, [], t_mjd)
+    sources, status, _ = await get_context().fetch(target, [], t_mjd)
     return get_context().build(target, [], sources, status, None, t_mjd)

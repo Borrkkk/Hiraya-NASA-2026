@@ -223,7 +223,7 @@ async def test_service_status_and_partial_failure():
         FakeAdapter("simbad", exc=ConnectionError("404 capabilities")),
         FakeAdapter("catwise2020", delay=1.0, timeout=0.01),
     ])
-    sources, status = await svc.fetch(TARGET, [])
+    sources, status, _ = await svc.fetch(TARGET, [])
     assert status["gaia_dr3"] == "ok (1 rows)" and status["simbad"].startswith("error")
     assert status["catwise2020"].startswith("timeout")
     ra, dec = barnard_gaia().position_at(T_FRAME)
@@ -272,7 +272,7 @@ async def test_outage_is_remembered_and_skipped(tmp_path):
     assert Slow.calls == 1
 
     svc = FieldContextService([Slow(cache=cache)])
-    _, status = await svc.fetch(TARGET, [])
+    _, status, _ = await svc.fetch(TARGET, [])
     assert status["gaia_dr3"].startswith("skipped: unavailable since")
 
     assert is_outage(Exception("502 Server Error: Proxy Error"))
@@ -295,3 +295,27 @@ async def test_query_error_does_not_trip_outage(tmp_path):
         with pytest.raises(ValueError):
             await Broken(cache=cache).cone(q)
     assert Broken.calls == 2  # retried each time, never skipped
+
+
+def test_asteroid_in_latest_frame_explains_detection():
+    """A detection that coincides with a solar-system body in its own frame is matched to it,
+    not reported as a candidate discovery."""
+    from spherex_inspect.models import KnownBody
+
+    ra, dec = 222.86623, -11.90754
+    tgt = to_target(InspectRequest(ra=ra, dec=dec))
+    lp = PositionSample(t_mid=60891.4618, ra=ra, dec=dec + 0.5 / 3600, err=1.5, frame_id="F1D3")
+    s = PointSummary(latest_position=lp, first_position=lp, positions=[lp], quality=QualitySummary(n_frames=1, n_usable=0))
+    vesta = KnownBody(name="4 Vesta", object_class="asteroid", source_catalogs=["skybot"], ra_at_t=ra, dec_at_t=dec,
+                      t_ref=60891.4618, separation_arcsec=0.0, is_solar_system=True)
+    star = neighbour(0, 0)  # irrelevant field star far away after re-centring
+    star.ra, star.dec = ra + 0.01, dec
+    svc = FieldContextService([])
+    no_solar = svc.build(tgt, [], [star], {}, s)
+    assert no_solar.verdict == "no_known_match" and "candidate discovery" in no_solar.note
+    ctx = svc.build(tgt, [], [star], {}, s, solar_by_frame={"F1D3": [vesta], "F1D6": [vesta]})
+    assert ctx.verdict == "matched" and ctx.best_match.name == "4 Vesta" and ctx.best_match.is_solar_system
+    assert all(not b.is_solar_system for b in ctx.nearby)  # nearby stays the fixed-sky list
+    # an asteroid in some OTHER frame does not explain the latest detection
+    other = svc.build(tgt, [], [star], {}, s, solar_by_frame={"F9D1": [vesta]})
+    assert other.verdict == "no_known_match"
