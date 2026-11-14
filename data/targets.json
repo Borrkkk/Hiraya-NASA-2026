@@ -1,0 +1,116 @@
+{
+  "description": "Curated SPHEREx demo fields for Hiraya. Coordinates are ICRS degrees. Pull with: python tools/pull_targets.py",
+  "defaults": {
+    "radius_deg": 0.08,
+    "detectors": [1, 2, 3, 4],
+    "collections": ["spherex_qr3", "spherex_dr1"],
+    "max_exposures_per_detector": 12,
+    "cutout_size_deg": 0.1
+  },
+  "targets": [
+    {
+      "id": "barnards-star",
+      "name": "Barnard's Star",
+      "category": "high_proper_motion",
+      "why": "Fastest known stellar proper motion (~10″/yr) — stars drift visibly across SPHEREx revisits.",
+      "ra": 269.452076,
+      "dec": 4.693391,
+      "query": "Barnard's Star"
+    },
+    {
+      "id": "epsilon-indi-b",
+      "name": "Epsilon Indi Ba/Bb",
+      "category": "brown_dwarf",
+      "why": "Nearby T-dwarf binary around ε Ind — cool objects that light up in SPHEREx mid-IR bands.",
+      "ra": 330.84037,
+      "dec": -56.78625,
+      "query": "Epsilon Indi B"
+    },
+    {
+      "id": "wise-0855",
+      "name": "WISE 0855−0714",
+      "category": "brown_dwarf",
+      "why": "Coldest known brown dwarf; high proper motion (~8″/yr). User-supplied position.",
+      "ra": 133.795129,
+      "dec": -7.245147,
+      "query": null,
+      "notes": "RA 08h55m10.831s, Dec −07d14m42.53s"
+    },
+    {
+      "id": "rw-aurigae",
+      "name": "RW Aurigae",
+      "category": "variable",
+      "why": "Classical T Tauri binary with dramatic IR brightness swings and jets.",
+      "ra": 76.958847,
+      "dec": 30.401533,
+      "query": "RW Aur"
+    },
+    {
+      "id": "r-draconis",
+      "name": "R Draconis",
+      "category": "variable",
+      "why": "Mira-type AGB variable — strong mid-IR dust emission, large amplitude.",
+      "ra": 248.928221,
+      "dec": 66.757631,
+      "query": "R Dra"
+    },
+    {
+      "id": "kapteyns-star",
+      "name": "Kapteyn's Star",
+      "category": "high_proper_motion",
+      "why": "Halo subdwarf with huge proper motion — clean motion demo in the south.",
+      "ra": 77.519157,
+      "dec": -45.021026,
+      "query": "Kapteyn's Star"
+    },
+    {
+      "id": "luhman-16",
+      "name": "Luhman 16 AB",
+      "category": "brown_dwarf",
+      "why": "Nearest brown-dwarf binary (~6.5 ly); bright in SPHEREx bands, high PM.",
+      "ra": 162.30355,
+      "dec": -53.31764,
+      "query": "Luhman 16"
+    },
+    {
+      "id": "mira",
+      "name": "Mira (ο Ceti)",
+      "category": "variable",
+      "why": "Prototype Mira variable + companion; classic IR light-curve / spectrum target.",
+      "ra": 34.836635,
+      "dec": -2.977637,
+      "query": "Mira"
+    },
+    {
+      "id": "chi-cygni",
+      "name": "χ Cygni",
+      "category": "variable",
+      "why": "Extremely large-amplitude Mira; often among the brightest AGB stars in the mid-IR.",
+      "ra": 296.369901,
+      "dec": 32.913461,
+      "query": "chi Cyg"
+    },
+    {
+      "id": "comet-3i-atlas",
+      "name": "Comet 3I/ATLAS",
+      "category": "solar_system",
+      "why": "IRSA published dedicated SPHEREx spectral images of interstellar comet 3I/ATLAS — great moving-object demo.",
+      "ra": 92.5,
+      "dec": -16.0,
+      "query": null,
+      "notes": "Approximate field; refine with IRSA MOST / Horizons before science use. See https://irsa.ipac.caltech.edu/data/SPHEREx/docs/comet3iatlas/index.html",
+      "radius_deg": 0.15
+    },
+    {
+      "id": "pluto",
+      "name": "Pluto",
+      "category": "solar_system",
+      "why": "Slow solar-system mover across multi-visit stacks — good tracklet / blink demo.",
+      "ra": 302.0,
+      "dec": -22.5,
+      "query": null,
+      "notes": "Approximate 2025–2026 field; update ephemeris for exact epoch matching.",
+      "radius_deg": 0.12
+    }
+  ]
+}
