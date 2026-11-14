@@ -1,6 +1,8 @@
 "use client";
 
+import { Minus, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { IconButton, Logo, Reticle, Segmented } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
 // Aladin Lite ships no TypeScript types; this is the slice of its API we use.
@@ -25,28 +27,28 @@ const IRSA_HIPS = "https://irsa.ipac.caltech.edu/data/hips/CDS";
 
 export const SURVEYS = [
   {
-    id: "allwise",
+    value: "allwise",
     url: `${IRSA_HIPS}/AllWISE/RGB-W4-W2-W1`,
     label: "Infrared",
-    hint: "AllWISE · 3.4–22 μm",
+    hint: "AllWISE, 3.4–22 µm",
   },
   {
-    id: "2mass",
+    value: "2mass",
     url: `${IRSA_HIPS}/2MASS/Color`,
-    label: "Near-IR",
-    hint: "2MASS · J H K",
+    label: "Near-infrared",
+    hint: "2MASS, 1.2–2.2 µm",
   },
   {
-    id: "dss2",
+    value: "dss2",
     url: `${IRSA_HIPS}/DSS2/color`,
     label: "Visible",
-    hint: "DSS2 · optical",
+    hint: "DSS2 optical",
   },
 ] as const;
 
-const surveyUrl = (id: SurveyId) => SURVEYS.find((s) => s.id === id)!.url;
+type SurveyId = (typeof SURVEYS)[number]["value"];
 
-type SurveyId = (typeof SURVEYS)[number]["id"];
+const surveyUrl = (id: SurveyId) => SURVEYS.find((s) => s.value === id)!.url;
 
 type View = { ra: number; dec: number; fov: number };
 
@@ -95,11 +97,10 @@ export function SkyMap({
           fov,
           projection: "SIN",
           cooFrame: "ICRS",
-          backgroundColor: "rgb(5, 6, 8)",
-          showReticle: true,
-          reticleColor: "rgb(255, 107, 61)",
-          reticleSize: 18,
-          // We draw our own controls; the Aladin logo stays (terms of use).
+          backgroundColor: "rgb(5, 6, 8)", // sky
+          // We draw the Pulsr reticle and controls ourselves. The Aladin logo
+          // stays (terms of use).
+          showReticle: false,
           showZoomControl: false,
           showLayersControl: false,
           showFullscreenControl: false,
@@ -148,76 +149,86 @@ export function SkyMap({
   };
 
   return (
-    <div className={cn("sky-map relative overflow-hidden bg-[#050608]", className)}>
+    <div className={cn("relative overflow-hidden bg-sky", className)}>
       <div
         ref={containerRef}
         className={cn(
-          "absolute inset-0 transition-opacity duration-1000",
+          "absolute inset-0 transition-opacity duration-(--dur-enter) ease-standard",
           ready ? "opacity-100" : "opacity-0",
         )}
       />
 
-      {/* Vignette keeps overlays legible over bright regions. */}
+      {/* Ground-to-transparent scrims: the one gradient Pulsr allows, so the
+          header and controls stay readable over bright sky. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(5,6,8,0.75)_100%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-linear-to-b from-ground/90 to-transparent"
       />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-linear-to-t from-ground/90 to-transparent"
+      />
+
+      <header className="absolute inset-x-0 top-0 flex items-center justify-between px-4 py-4 sm:px-6">
+        <Logo size={22} />
+      </header>
 
       {!ready && !error && (
         <div className="absolute inset-0 grid place-items-center">
-          <p className="font-mono text-xs uppercase tracking-[0.3em] text-[#7C838E] animate-pulse">
-            Loading sky
-          </p>
+          <p className="text-small text-ink-secondary">Loading the sky</p>
         </div>
       )}
 
       {error && (
         <div className="absolute inset-0 grid place-items-center p-6 text-center">
-          <p className="max-w-sm font-mono text-sm text-[#A3A9B3]">
-            The sky map needs WebGL2, which this browser didn&apos;t provide.
+          <p className="max-w-sm text-body-sm text-ink-secondary">
+            This browser can&apos;t draw the sky map. It needs WebGL2, which most
+            up-to-date browsers have.
           </p>
         </div>
       )}
 
       {ready && (
         <>
-          {view && <Readout view={view} />}
+          {/* The reticle frames the centre of view: what search and verify
+              will act on. */}
+          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            {view && (
+              <Reticle
+                size={56}
+                name={`Field ${formatFov(view.fov)}`}
+                coords={`${formatRa(view.ra)} ${formatDec(view.dec)}`}
+              />
+            )}
+          </div>
 
-          <div className="absolute right-4 top-1/2 flex -translate-y-1/2 flex-col gap-2">
-            <IconButton label="Zoom in" onClick={() => aladinRef.current?.increaseZoom()}>
-              <path d="M12 5v14M5 12h14" />
+          {/* Mobile: bottom-right above the survey switch, clear of the
+              reticle label. Desktop: vertically centred on the right edge. */}
+          <div className="absolute bottom-24 right-4 flex flex-col gap-2 sm:bottom-auto sm:right-6 sm:top-1/2 sm:-translate-y-1/2">
+            <IconButton
+              label="Zoom in"
+              className="max-sm:size-11"
+              onClick={() => aladinRef.current?.increaseZoom()}
+            >
+              <Plus size={16} strokeWidth={1.5} aria-hidden="true" />
             </IconButton>
-            <IconButton label="Zoom out" onClick={() => aladinRef.current?.decreaseZoom()}>
-              <path d="M5 12h14" />
+            <IconButton
+              label="Zoom out"
+              className="max-sm:size-11"
+              onClick={() => aladinRef.current?.decreaseZoom()}
+            >
+              <Minus size={16} strokeWidth={1.5} aria-hidden="true" />
             </IconButton>
           </div>
 
-          <div
-            role="radiogroup"
-            aria-label="Sky survey"
-            className="absolute bottom-6 left-1/2 flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-[#0E1013]/70 p-1 backdrop-blur-md"
-          >
-            {SURVEYS.map((s) => {
-              const active = s.id === survey;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  title={s.hint}
-                  onClick={() => pickSurvey(s.id)}
-                  className={cn(
-                    "h-11 whitespace-nowrap rounded-full px-3.5 font-mono text-xs uppercase tracking-[0.12em] transition-colors sm:px-5 sm:tracking-[0.15em]",
-                    active
-                      ? "bg-[#FF6B3D] text-[#0E1013]"
-                      : "text-[#A3A9B3] hover:bg-white/5 hover:text-[#E8EAED]",
-                  )}
-                >
-                  {s.label}
-                </button>
-              );
-            })}
+          <div className="absolute inset-x-4 bottom-6 flex justify-center sm:bottom-8">
+            <Segmented
+              label="Sky survey"
+              options={SURVEYS}
+              value={survey}
+              onChange={pickSurvey}
+              className="w-full max-w-sm"
+            />
           </div>
         </>
       )}
@@ -225,56 +236,13 @@ export function SkyMap({
   );
 }
 
-function Readout({ view }: { view: View }) {
-  return (
-    <dl className="pointer-events-none absolute left-4 top-4 grid grid-cols-[auto_auto] gap-x-3 gap-y-1 rounded-lg border border-white/10 bg-[#0E1013]/60 px-3 py-2 font-mono text-[11px] tabular-nums backdrop-blur-md">
-      <dt className="text-[#7C838E]">RA</dt>
-      <dd className="text-[#E8EAED]">{formatRa(view.ra)}</dd>
-      <dt className="text-[#7C838E]">DEC</dt>
-      <dd className="text-[#E8EAED]">{formatDec(view.dec)}</dd>
-      <dt className="text-[#7C838E]">FOV</dt>
-      <dd className="text-[#E8EAED]">{formatFov(view.fov)}</dd>
-    </dl>
-  );
-}
-
-function IconButton({
-  label,
-  onClick,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className="grid size-11 place-items-center rounded-full border border-white/10 bg-[#0E1013]/70 text-[#E8EAED] backdrop-blur-md transition-colors hover:border-[#FF6B3D]/60 hover:text-[#FF6B3D]"
-    >
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        className="size-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.75}
-        strokeLinecap="round"
-      >
-        {children}
-      </svg>
-    </button>
-  );
-}
-
+// Pulsr number formats: 08h55m10.8s −07°14′42″, 4.4 µm.
 function formatRa(deg: number) {
   const h = (((deg % 360) + 360) % 360) / 15;
   const hh = Math.floor(h);
   const mm = Math.floor((h - hh) * 60);
   const ss = ((h - hh) * 60 - mm) * 60;
-  return `${pad(hh)}h ${pad(mm)}m ${ss.toFixed(1).padStart(4, "0")}s`;
+  return `${pad(hh)}h${pad(mm)}m${ss.toFixed(1).padStart(4, "0")}s`;
 }
 
 function formatDec(deg: number) {
@@ -283,7 +251,7 @@ function formatDec(deg: number) {
   const dd = Math.floor(a);
   const mm = Math.floor((a - dd) * 60);
   const ss = Math.round(((a - dd) * 60 - mm) * 60);
-  return `${sign}${pad(dd)}° ${pad(mm)}′ ${pad(ss)}″`;
+  return `${sign}${pad(dd)}°${pad(mm)}′${pad(ss)}″`;
 }
 
 function formatFov(deg: number) {
