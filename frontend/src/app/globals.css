@@ -132,6 +132,12 @@
 }
 
 @layer base {
+  :root {
+    /* Feed panel (440px) plus its 24px margin. The sky stage is shifted by this
+       much so its centre lands in the free part of the screen. */
+    --feed-w: 464px;
+  }
+
   html {
     color-scheme: dark;
   }
@@ -156,5 +162,35 @@
       transition-duration: 0ms !important;
       animation-duration: 0ms !important;
     }
+  }
+}
+
+/* Hide a scroller's bar (the news carousel). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* A quiet scrollbar for the feed. */
+@utility scroll-pulsr {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+/*
+ * Aladin's terms require its logo to stay visible and linked at the bottom
+ * right of the view. The sky stage runs under the feed, so move the logo into
+ * the visible part: left of the panel on desktop, above the sheet on phones.
+ */
+@media (min-width: 64rem) {
+  .aladin-logo-container {
+    right: calc(var(--feed-w) + 8px) !important;
+  }
+}
+@media (max-width: 63.999rem) {
+  .aladin-logo-container {
+    bottom: calc(56dvh + 8px) !important;
   }
 }
