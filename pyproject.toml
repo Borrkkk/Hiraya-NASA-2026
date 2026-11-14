@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spherex-inspect"
+version = "0.1.0"
+description = "SPHEREx point inspection feature API (Space Apps 2026)"
+requires-python = ">=3.11"
+dependencies = [
+  "astropy>=6.1",
+  "astroquery>=0.4.10",
+  "photutils>=1.13",
+  "numpy",
+  "fastapi",
+  "uvicorn",
+  "pydantic>=2",
+  "httpx",
+  "diskcache",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio", "pytest-recording", "respx"]
+
+[tool.setuptools.packages.find]
+include = ["spherex_inspect*", "api*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = ["live: hits real IRSA / catalog services (run with -m live)"]
+addopts = "-m 'not live'"
