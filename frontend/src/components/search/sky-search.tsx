@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Chip } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { exploreHref } from "@/lib/explore";
+import { exploreHref } from "@/lib/explore/href";
 import { KINDS, kindLabel, searchCatalog, type ObjectKind } from "@/lib/sky/catalog";
 import { parseCoordinates } from "@/lib/sky/coordinates";
 import { formatCoords } from "@/lib/sky/format";

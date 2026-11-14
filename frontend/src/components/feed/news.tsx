@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { exploreHref } from "@/lib/explore";
+import { exploreHref } from "@/lib/explore/href";
 import { news } from "@/lib/feed/mock";
 import type { ObjectKind } from "@/lib/sky/catalog";
 import { FeedSection } from "./section";
