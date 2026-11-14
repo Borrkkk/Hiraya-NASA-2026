@@ -16,6 +16,9 @@ ALL_BANDS = [1, 2, 3, 4, 5, 6]
 SIA_SEARCH_RADIUS_ARCSEC = 1.0
 SIA_RETRIES = 3
 SIA_BACKOFF_S = 5.0  # seconds x attempt
+# Frame lists change only at the weekly ingest: reuse a cached list for this long, and fall
+# back to an older cached list if IRSA's SIA is failing.
+SIA_CACHE_TTL_S = 6 * 3600
 # Collections: keep the newest DR and newest QR (+ their _deep variants).
 # Cubes are not single-exposure frames, so they are excluded.
 COLLECTION_FILTER = "spherex"
@@ -64,3 +67,29 @@ PM_CLIP_SIGMA = 4.0  # drop position outliers beyond this (after error rescaling
 PM_MAX_CLIP_FRACTION = 0.2
 SPECTRUM_BINS = 102
 SPECTRUM_RANGE_UM = (0.75, 5.0)
+
+# Field Context (brief §6)
+CONTEXT_MAX_CONE_ARCSEC = 120.0  # cone = cutout half-size, capped here
+# Fastest known stellar pm is Barnard's ~10.4"/yr; widen catalog cones so a source this fast,
+# seen at its catalog epoch, still lands in the cone at the frame time.
+CONTEXT_PM_MAX_ARCSEC_YR = 11.0
+CONTEXT_TIMEOUT_S = 45.0
+# After a timeout / 5xx, skip that catalog for this long instead of waiting again.
+CONTEXT_OUTAGE_S = 15 * 60
+CONTEXT_CACHE_TTL_S = {"simbad": 7 * 86400, "gaia_dr3": None, "catwise2020": None}
+# SIMBAD object types that are not separate light sources (planets carry the host's
+# coordinates: Barnard's Star b/c/d/e would otherwise make every match "ambiguous").
+SIMBAD_SKIP_OTYPES = frozenset({"Pl", "Pl?"})
+IRSA_TAP_URL = "https://irsa.ipac.caltech.edu/TAP"
+SIMBAD_SERVERS = ("simbad.cds.unistra.fr", "simbad.harvard.edu")  # CDS 404'd on 2026-11-14
+MATCH_GROUP_RADIUS_ARCSEC = 1.5  # same object across catalogs
+MATCH_SIGMA_PSF_ARCSEC = 3.0
+MATCH_WEIGHTS = {"position": 0.6, "pm": 0.25, "ir": 0.15}
+MATCH_MIN_SCORE = 0.6
+MATCH_MIN_MARGIN = 0.2
+MATCH_AMBIGUOUS_RADIUS_ARCSEC = 6.0
+MATCH_PM_MIN_SIGNIFICANCE = 3.0
+MATCH_IR_WINDOW_UM = 0.3
+MATCH_IR_SIGMA_MAG = 0.3
+# Zero points (Jy): 2MASS Ks (Cohen+2003), WISE W1/W2 (Jarrett+2011)
+IR_BANDS = {"Ks": (2.16, 666.7), "W1": (3.4, 309.54), "W2": (4.6, 171.79)}

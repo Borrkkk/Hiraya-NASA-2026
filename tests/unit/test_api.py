@@ -42,13 +42,16 @@ def test_inspect_endpoint_end_to_end(monkeypatch):
     import httpx
     import respx
 
+    from spherex_inspect.context import FieldContextService
     from spherex_inspect.retrieval import CutoutRetrieval
 
+    from .test_context import FakeAdapter
     from .test_retrieval import MEF
 
     rows = {"spherex_dr1": [make_row(f"o{i}", (i % 6) + 1, 61000.0 + 10 * i, "spherex_dr1") for i in range(6)]}
     spherex_inspect.set_discovery(FrameDiscovery(FakeBackend(rows)))
     spherex_inspect.set_retrieval(CutoutRetrieval(backoff_s=0, retries=1))
+    spherex_inspect.set_context(FieldContextService([FakeAdapter("gaia_dr3"), FakeAdapter("simbad", exc=ConnectionError("down"))]))
     try:
         with respx.mock:
             ok = MEF
@@ -59,6 +62,7 @@ def test_inspect_endpoint_end_to_end(monkeypatch):
     finally:
         spherex_inspect.set_discovery(None)
         spherex_inspect.set_retrieval(None)
+        spherex_inspect.set_context(None)
     assert r.status_code == 200
     b = r.json()
     assert b["status"] == "partial" and len(b["frames"]) == 6
@@ -66,5 +70,25 @@ def test_inspect_endpoint_end_to_end(monkeypatch):
     assert b["summary"]["quality"]["n_frames"] == 6 and b["summary"]["quality"]["n_failed"] == 1
     assert len(b["summary"]["spectrum_binned"]) == 102
     assert any("cutouts failed" in w for w in b["warnings"])
-    assert any("context" in w for w in b["warnings"])
-    assert b["context"] is None
+    assert any("catalog(s) failed: simbad" in w for w in b["warnings"])
+    ctx = b["context"]
+    assert ctx["verdict"] == "no_known_match" and ctx["status_by_source"]["gaia_dr3"] == "ok (0 rows)"
+    assert ctx["status_by_source"]["simbad"].startswith("error")
+
+
+def test_context_endpoint():
+    from spherex_inspect.context import FieldContextService
+
+    from .test_context import FakeAdapter, T_FRAME, barnard_gaia
+
+    spherex_inspect.set_context(FieldContextService([FakeAdapter("gaia_dr3", [barnard_gaia()])]))
+    try:
+        ra, dec = barnard_gaia().position_at(T_FRAME)
+        r = TestClient(app).get("/context", params={"ra": ra, "dec": dec, "t": str(T_FRAME)})
+    finally:
+        spherex_inspect.set_context(None)
+    assert r.status_code == 200
+    b = r.json()
+    assert b["t_ref"] == T_FRAME and b["best_match"] is None and b["verdict"] == "no_known_match"
+    assert b["nearby"][0]["source_catalogs"] == ["gaia_dr3"] and b["nearby"][0]["separation_arcsec"] < 0.01
+    assert "nothing detected" in b["note"]

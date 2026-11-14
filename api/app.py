@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Query
 import spherex_inspect
 from spherex_inspect.discovery import DiscoveryError
 from spherex_inspect.intake import IntakeError
-from spherex_inspect.models import FramesResponse, InspectRequest, InspectResponse
+from spherex_inspect.models import FieldContext, FramesResponse, InspectRequest, InspectResponse
 
 app = FastAPI(title="SPHEREx Point Inspection API", version="0.1.0")
 
@@ -68,3 +68,17 @@ async def inspect(
         raise HTTPException(422, str(exc))
     except DiscoveryError as exc:
         raise HTTPException(502, f"IRSA unavailable: {exc}")
+
+
+@app.get("/context", response_model=FieldContext)
+async def context(
+    ra: str = Query(..., description="RA in degrees or sexagesimal (hours)"),
+    dec: str = Query(..., description="Dec in degrees or sexagesimal"),
+    t: str | None = Query(None, description="Time, MJD or ISO (default: now)"),
+    size: float | None = Query(None, description="Cutout size in degrees (cone = half of it, max 120\")"),
+) -> FieldContext:
+    req = InspectRequest(ra=ra, dec=dec, cutout_size_deg=size)
+    try:
+        return await spherex_inspect.inspect_context(req, t)
+    except IntakeError as exc:
+        raise HTTPException(422, str(exc))

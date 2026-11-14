@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import time
 from collections import defaultdict
 from typing import Any, Iterable, Protocol
 
@@ -283,11 +284,29 @@ class FrameDiscovery:
         warnings: list[str] = []
         collections = await self.collections()
 
+        cache = self._get_cache()
+
         async def one(coll: str):
-            rows = await _retry(
-                self.backend.query, target.coord.ra, target.coord.dec,
-                config.SIA_SEARCH_RADIUS_ARCSEC, coll,
-            )
+            # Raw SIA rows are cached: fresh for SIA_CACHE_TTL_S, and kept afterwards as a
+            # fallback for when IRSA's SIA 502s.
+            key = (f"sia:rows:v1:{coll}:{target.coord.ra:.7f}:{target.coord.dec:.7f}:"
+                   f"{config.SIA_SEARCH_RADIUS_ARCSEC:g}")
+            hit = cache.get(key)
+            if hit is not None and time.time() - hit["t"] < config.SIA_CACHE_TTL_S:
+                return coll, hit["rows"]
+            try:
+                rows = await _retry(
+                    self.backend.query, target.coord.ra, target.coord.dec,
+                    config.SIA_SEARCH_RADIUS_ARCSEC, coll,
+                )
+            except Exception as exc:
+                if hit is None:
+                    raise
+                age_h = (time.time() - hit["t"]) / 3600
+                warnings.append(f"discovery: collection {coll} query failed ({exc}); "
+                                f"using the cached frame list from {age_h:.1f} h ago")
+                return coll, hit["rows"]
+            cache.set(key, {"t": time.time(), "rows": rows})
             return coll, rows
 
         results = await asyncio.gather(*(one(c) for c in collections), return_exceptions=True)

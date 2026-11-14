@@ -167,3 +167,89 @@ Findings from live calls that differ from, or add to, `SPHEREX_POINT_INSPECTION_
   When DR1 drops out, the baseline shrinks to QR3's ~40 days and the pm is (correctly) withheld
   by the baseline gate; the response is `partial` with a warning. This happens often enough
   that a short SIA-result cache (raw rows, a few hours) is worth adding.
+
+## Step 5 — Field Context: fixed catalogs + match (verified 2026-11-14)
+
+### Done check passed (live)
+- `inspect_point` on Barnard's Star (Gaia position at 2026.0): **verdict `matched`, best match
+  "Barnard's star"** (Gaia DR3 4472832130942575872 + SIMBAD), 1.39″ from the measured position,
+  score 0.82, class `variable_star` (SIMBAD otype `BY*`, a BY Draconis variable — not plain
+  `star` as the brief's table expected). Next nearest known body 9.5″ away. ~49 s warm, of which
+  ~41 s is the CatWISE timeout (catalogs run concurrently with retrieval + measurement).
+
+### Contract changes (proposed — please review)
+- `FieldContext.note` (why the verdict is what it is) and `FieldContext.t_ref` (MJD catalog
+  positions were propagated to = the latest measured position's time).
+- `KnownBody.ids` also carries `simbad_otype` when known.
+
+### Verified
+- **CatWISE2020** (IRSA `catwise_2020`): positions `ra_pm/dec_pm` at **MJD 57170 = 2015.405**
+  (brief's value confirmed); `pmra/pmdec` in **arcsec/yr** ("apparent motion"); W1/W2 from
+  `w1mpro_pm/w2mpro_pm`. The spatial index is on `ra/dec`, not `ra_pm/dec_pm`.
+- **SIMBAD**: CDS main still 404 on TAP capabilities; the Harvard mirror works and is used as
+  fallback (adapter remembers the working server). `basic` has no `coo_epoch` column on the
+  mirror; positions are J2000. The mirror's ADQL parser rejects qualified names in `ORDER BY`.
+  SIMBAD's main identifier for the star is `NAME Barnard's star` (lowercase "star"), so that is
+  the name returned; the done check compares case-insensitively.
+- **Gaia DR3** (ESA archive via astroquery): 165 rows for the widened Barnard cone in ~7 s.
+
+### Plan / brief corrections
+- **Cone + propagation alone misses fast movers.** The brief's cone (radius = cutout half-size,
+  90″) is centred on the target at frame time, but catalogs store positions at their epoch:
+  Barnard's Star is ~110″ from its Gaia J2016 position and ~280″ from its SIMBAD J2000 position.
+  Adapters therefore search radius + 11″/yr × |Δt| and keep only rows already inside the cone
+  or with |pm| × |Δt| large enough to reach it (filtered server-side in ADQL); the exact cone
+  cut is applied after propagation.
+- **SIMBAD returns exoplanets** (Barnard's Star b/c/d/e, otype `Pl`) with the host's
+  coordinates. Left in, every planet host would come out `ambiguous`. They are dropped.
+- With the brief's weights (position 0.6, pm 0.25), two catalog stars < 1″ apart can't reach the
+  0.2 margin even when the measured pm clearly favours one → `ambiguous` with the right one
+  ranked first. Honest at 6″ pixels; left as is.
+
+### Choices
+- Two-phase component: `fetch()` (network, runs concurrently with retrieval + measurement)
+  and `build()` (pure: propagate → group → score → decide).
+- Grouping across catalogs within 1.5″ after propagation; never merges two rows of one catalog.
+  Astrometry priority Gaia > SIMBAD > CatWISE; name from SIMBAD when present.
+- Scoring renormalises over the terms actually available (position always; pm only when the
+  measured pm is ≥ 3σ; IR only with a usable SPHEREx sample within 0.3 µm of Ks/W1/W2), so a
+  position-only match can still reach 0.6. The pm term is deliberately tolerant
+  (σ = hypot(err, 10 % of |pm|, 50 mas/yr)) because of the step-4 RA systematic.
+- Ks is not queried yet (no 2MASS adapter); IR scoring uses CatWISE W1/W2 only.
+- Raw catalog rows are cached (SIMBAD 7 days, Gaia/CatWISE forever), keyed by the exact ADQL.
+- `GET /context?ra=&dec=&t=` lists known bodies at time `t` (no pixels → no best match).
+
+### Reliability
+- **IRSA TAP hung on `catwise_2020` all session** — even `SELECT TOP 3` on a tiny cone
+  elsewhere did not return within 280 s. CatWISE is reported as a timeout in
+  `status_by_source` and the response is `partial`.
+- `asyncio.wait_for` cannot stop a blocking worker thread: the abandoned TAP call kept the
+  process alive ~5 min after the request returned. SIMBAD and CatWISE now go through pyvo with
+  a `requests` session that has a default socket timeout (0.9 × adapter timeout), so threads
+  end too. Gaia still uses astroquery's own client (no socket timeout) — fine so far, but worth
+  the same treatment.
+
+## Faster checks (2026-11-14)
+Measured before: offline suite 32 s; live suite several minutes (one run hung ~6 min).
+
+- **Offline: 32 s → 2 s.** 30 s was a test bug: the fake SIA backend lists `spherex_qr2` with
+  no rows, so discovery waited out the real 5 s + 10 s retry backoff in two tests. Offline tests
+  now run with zero retry backoff (`tests/conftest.py`).
+- **Live: ~6 min → 50 s first run, 10 s warm.**
+  - Steps 3–5 share one `inspect_point` run of Barnard's Star (`barnard_run` session fixture)
+    instead of three full pipeline runs, with `max_frames=60` (spread across time and detectors;
+    pm still 20.8σ, |pm| 10012 ± 480 vs Gaia 10393, verdict `matched`).
+  - All live tests use the shared `.cache/`. The cold-download timing check (step 2) only runs
+    with `SPHEREX_LIVE_COLD=1`.
+- **Catalog outage memory (API too, not just tests).** A timeout / 5xx / connection failure
+  is stored in the disk cache for 15 min (`CONTEXT_OUTAGE_S`); during that window the catalog
+  is skipped at once with `status_by_source = "skipped: unavailable since HH:MM:SS (...)"`.
+  This removed the ~41 s CatWISE wait from every request while IRSA TAP hangs. Query errors
+  (bad ADQL, 4xx) never trip it, so bugs stay visible.
+- **SIA frame lists cached** (raw rows, fresh for 6 h — `SIA_CACHE_TTL_S`; new data only
+  arrives at the weekly ingest). When IRSA's SIA fails, an older cached list is used with a
+  warning instead of losing that collection (and the DR1 baseline).
+- How to run:
+  - `pytest` — offline, ~2 s
+  - `pytest -m live` — live, ~10 s warm
+  - `SPHEREX_LIVE_COLD=1 pytest -m live` — adds the cold-download timing check

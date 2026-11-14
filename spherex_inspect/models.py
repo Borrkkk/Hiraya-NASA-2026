@@ -243,6 +243,8 @@ class FieldContext(BaseModel):
     solar_system_by_frame: dict[str, list[KnownBody]] = Field(default_factory=dict)
     verdict: Literal["matched", "ambiguous", "no_known_match"] = "no_known_match"
     status_by_source: dict[str, str] = Field(default_factory=dict)
+    note: str | None = None  # why the verdict is what it is (proposed addition)
+    t_ref: float | None = None  # MJD the catalog positions were propagated to (proposed addition)
 
 
 # --------------------------------------------------------------------------- #

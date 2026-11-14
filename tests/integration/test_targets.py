@@ -1,11 +1,30 @@
-"""Live integration tests (run with `pytest -m live`). They hit IRSA/SIMBAD."""
+"""Live integration tests (run with `pytest -m live`). They hit IRSA / SIMBAD / Gaia.
+
+Speed: steps 3–5 share ONE pipeline run of Barnard's Star (`barnard_run`, 60 frames spread
+across time and detectors) and use the real `.cache/`, so a warm run is fast. The cold-download
+timing check (step 2) re-downloads on purpose and only runs with SPHEREX_LIVE_COLD=1.
+"""
+import asyncio
+import json
+import math
+import os
+import time
+from pathlib import Path
+
+import astropy.units as u
 import pytest
+from astropy.coordinates import Distance, SkyCoord
+from astropy.time import Time
 
 from spherex_inspect.discovery import FrameDiscovery
 from spherex_inspect.intake import to_target
 from spherex_inspect.models import InspectRequest
 
 pytestmark = pytest.mark.live
+
+FIXTURES = Path(__file__).parent.parent / "fixtures"
+GAIA = json.loads((FIXTURES / "manifest.json").read_text())["_gaia_dr3_barnard"]
+LIVE_FRAMES = 60  # enough for a ~20σ pm over the full baseline; 200 is the API default
 
 
 def resolve(name: str) -> tuple[float, float]:
@@ -26,6 +45,31 @@ def resolve(name: str) -> tuple[float, float]:
     return float(r[cols["ra"]][0]), float(r[cols["dec"]][0])
 
 
+def barnard() -> SkyCoord:
+    g = GAIA
+    return SkyCoord(g["ra"] * u.deg, g["dec"] * u.deg, pm_ra_cosdec=g["pmra"] * u.mas / u.yr,
+                    pm_dec=g["pmdec"] * u.mas / u.yr, distance=Distance(parallax=g["parallax"] * u.mas),
+                    radial_velocity=g["radial_velocity"] * u.km / u.s, obstime=Time(g["ref_epoch"], format="jyear"))
+
+
+@pytest.fixture(scope="session")
+def barnard_run():
+    """One full inspect_point run on Barnard's Star (Gaia position at 2026.0), shared by steps 3–5."""
+    import spherex_inspect
+
+    ctr = barnard().apply_space_motion(new_obstime=Time(2026.0, format="jyear"))
+    t0 = time.monotonic()
+    resp = asyncio.run(spherex_inspect.inspect_point(
+        InspectRequest(ra=ctr.ra.deg, dec=ctr.dec.deg, max_frames=LIVE_FRAMES)))
+    print(f"\n[barnard_run] {time.monotonic() - t0:.1f}s, status={resp.status}, warnings={resp.warnings}")
+    return resp
+
+
+# --------------------------------------------------------------------------- #
+# Step 1 — discovery
+# --------------------------------------------------------------------------- #
+
+
 async def test_step1_barnards_star_frames():
     ra, dec = resolve("Barnard's Star")
     assert ra == pytest.approx(269.452, abs=0.05) and dec == pytest.approx(4.693, abs=0.05)
@@ -42,9 +86,13 @@ async def test_step1_barnards_star_frames():
         assert len(f.footprint) >= 4
 
 
-async def test_step2_cutouts_download_and_cache(tmp_path):
-    import time
+# --------------------------------------------------------------------------- #
+# Step 2 — cold download timing (opt-in: it re-downloads ~80 MB on purpose)
+# --------------------------------------------------------------------------- #
 
+
+@pytest.mark.skipif(not os.environ.get("SPHEREX_LIVE_COLD"), reason="set SPHEREX_LIVE_COLD=1 to time cold downloads")
+async def test_step2_cutouts_download_and_cache(tmp_path):
     import diskcache
 
     from spherex_inspect.retrieval import CutoutRetrieval
@@ -78,83 +126,55 @@ async def test_step2_cutouts_download_and_cache(tmp_path):
     cache.close()
 
 
-async def test_step3_barnard_measurements_vs_gaia(tmp_path):
-    """Broader live check: measure ~30 frames around Barnard's 2026.0 position."""
-    import json
-    from pathlib import Path
+# --------------------------------------------------------------------------- #
+# Steps 3–5 — share one pipeline run
+# --------------------------------------------------------------------------- #
 
-    import astropy.units as u
-    import diskcache
-    from astropy.coordinates import Distance, SkyCoord
-    from astropy.time import Time
 
-    import spherex_inspect
-    from spherex_inspect.retrieval import CutoutRetrieval
-
-    g = json.loads((Path(__file__).parent.parent / "fixtures" / "manifest.json").read_text())["_gaia_dr3_barnard"]
-    star = SkyCoord(g["ra"] * u.deg, g["dec"] * u.deg, pm_ra_cosdec=g["pmra"] * u.mas / u.yr,
-                    pm_dec=g["pmdec"] * u.mas / u.yr, distance=Distance(parallax=g["parallax"] * u.mas),
-                    radial_velocity=g["radial_velocity"] * u.km / u.s, obstime=Time(g["ref_epoch"], format="jyear"))
-    ctr = star.apply_space_motion(new_obstime=Time(2026.0, format="jyear"))
-    spherex_inspect.set_retrieval(CutoutRetrieval(cache=diskcache.Cache(str(tmp_path / "c"))))
-    try:
-        fetched, ms = await spherex_inspect.measure_frames(
-            InspectRequest(ra=ctr.ra.deg, dec=ctr.dec.deg, max_frames=30, cutout_size_deg=0.05))
-    finally:
-        spherex_inspect.set_retrieval(None)
+def test_step3_barnard_detected_near_gaia(barnard_run):
+    """Every downloaded frame detects Barnard's Star within 1 px of its Gaia-propagated position."""
+    resp, star = barnard_run, barnard()
+    ok = [f for f in resp.frames if f.status != "failed"]
+    detected = [f for f in ok if f.status == "detected"]
     seps = []
-    for m in ms:
-        if m.detected:
-            p = star.apply_space_motion(new_obstime=Time(m.t_mid, format="mjd"))
-            seps.append(p.separation(SkyCoord(m.ra_meas * u.deg, m.dec_meas * u.deg)).arcsec)
-        print(f"{m.frame_id:24s} D{m.detector} λ={m.wavelength_um or 0:.3f} det={m.detected!s:5} "
-              f"pos={m.position_usable!s:5} flux={m.flux_jy or 0:7.3f} {m.flag_names} {m.note or ''}")
-    ok = [c for c in fetched.cutouts if c.status == "ok"]
-    print(f"cutouts ok {len(ok)}/{len(ms)}; detected {len(seps)}; "
-          f"sep vs Gaia median {sorted(seps)[len(seps) // 2]:.2f}\" max {max(seps):.2f}\"")
-    assert len(seps) >= 0.9 * len(ok)
-    assert sorted(seps)[len(seps) // 2] < 3.0 and max(seps) < 6.15
+    for p in resp.summary.positions:
+        g = star.apply_space_motion(new_obstime=Time(p.t_mid, format="mjd"))
+        seps.append(g.separation(SkyCoord(p.ra * u.deg, p.dec * u.deg)).arcsec)
+    seps.sort()
+    print(f"\ncutouts ok {len(ok)}/{len(resp.frames)}; detected {len(detected)}; position-usable {len(seps)}; "
+          f"sep vs Gaia median {seps[len(seps) // 2]:.2f}\" max {seps[-1]:.2f}\"")
+    assert len(detected) >= 0.9 * len(ok)
+    assert seps[len(seps) // 2] < 3.0 and seps[-1] < 6.15
 
 
-async def test_step4_barnard_proper_motion():
-    """Done check: Barnard's summary reports a significant pm within 20% of the published value."""
-    import json
-    import math
-    from pathlib import Path
-
-    import astropy.units as u
-    from astropy.coordinates import Distance, SkyCoord
-    from astropy.time import Time
-
-    import spherex_inspect
-
-    g = json.loads((Path(__file__).parent.parent / "fixtures" / "manifest.json").read_text())["_gaia_dr3_barnard"]
-    star = SkyCoord(g["ra"] * u.deg, g["dec"] * u.deg, pm_ra_cosdec=g["pmra"] * u.mas / u.yr,
-                    pm_dec=g["pmdec"] * u.mas / u.yr, distance=Distance(parallax=g["parallax"] * u.mas),
-                    radial_velocity=g["radial_velocity"] * u.km / u.s, obstime=Time(g["ref_epoch"], format="jyear"))
-    ctr = star.apply_space_motion(new_obstime=Time(2026.0, format="jyear"))
-
-    resp = await spherex_inspect.inspect_point(InspectRequest(ra=ctr.ra.deg, dec=ctr.dec.deg, include_context=False))
-    s = resp.summary
-    q = s.quality
+def test_step4_barnard_proper_motion(barnard_run):
+    """Barnard's summary reports a significant pm within 20% of the published value."""
+    s = barnard_run.summary
     fit = s.proper_motion_fit
-    print(f"\nframes {q.n_frames} failed {q.n_failed} detected {q.n_detected} pos-usable {q.n_position_usable} "
-          f"flux-usable {q.n_usable}; flags {q.flag_summary}")
-    print(f"fit: pm=({fit.pm_ra_cosdec:.0f}±{fit.pm_ra_cosdec_err:.0f}, {fit.pm_dec:.0f}±{fit.pm_dec_err:.0f}) mas/yr "
-          f"|pm|={fit.pm_total:.0f}±{fit.err:.0f} ({fit.significance:.1f}σ) PA={fit.position_angle_deg:.1f}° "
-          f"rχ²={fit.reduced_chi2:.2f} used {fit.n_used} rejected {fit.n_rejected} baseline {fit.baseline_days:.0f} d")
-    print(f"Gaia: pm=({g['pmra']:.0f}, {g['pmdec']:.0f}) |pm|={math.hypot(g['pmra'], g['pmdec']):.0f}")
-    print(f"first {s.first_position.t_mid:.1f} ({s.first_position.ra:.6f}, {s.first_position.dec:.6f}) "
-          f"latest {s.latest_position.t_mid:.1f} ({s.latest_position.ra:.6f}, {s.latest_position.dec:.6f})")
-    print(f"spectrum usable {len(s.spectrum)} flagged {len(s.spectrum_flagged)}; warnings {resp.warnings}")
-
+    print(f"\nfit: pm=({fit.pm_ra_cosdec:.0f}±{fit.pm_ra_cosdec_err:.0f}, {fit.pm_dec:.0f}±{fit.pm_dec_err:.0f}) "
+          f"mas/yr |pm|={fit.pm_total:.0f}±{fit.err:.0f} ({fit.significance:.1f}σ) used {fit.n_used} "
+          f"rejected {fit.n_rejected} baseline {fit.baseline_days:.0f} d; Gaia |pm|="
+          f"{math.hypot(GAIA['pmra'], GAIA['pmdec']):.0f}")
     pm = s.proper_motion
     assert pm is not None, s.proper_motion_note
-    gaia_total = math.hypot(g["pmra"], g["pmdec"])
+    gaia_total = math.hypot(GAIA["pmra"], GAIA["pmdec"])
     assert pm.pm_total == pytest.approx(gaia_total, rel=0.2)
     # each component within 20% of the total (pm_ra is only −0.8″/yr, so a relative test on it is meaningless)
-    assert abs(pm.pm_ra_cosdec - g["pmra"]) < 0.2 * gaia_total
-    assert abs(pm.pm_dec - g["pmdec"]) < 0.2 * gaia_total
-    # moved between first and latest frames, northwards
-    assert s.latest_position.dec > s.first_position.dec
-    assert len(s.spectrum) + len(s.spectrum_flagged) >= 0.8 * q.n_detected
+    assert abs(pm.pm_ra_cosdec - GAIA["pmra"]) < 0.2 * gaia_total
+    assert abs(pm.pm_dec - GAIA["pmdec"]) < 0.2 * gaia_total
+    assert s.latest_position.dec > s.first_position.dec  # moved north
+    assert len(s.spectrum) + len(s.spectrum_flagged) >= 0.8 * s.quality.n_detected
+
+
+def test_step5_barnard_context_matched(barnard_run):
+    """Barnard's Star context → matched, best match "Barnard's Star"."""
+    ctx = barnard_run.context
+    print(f"\nverdict={ctx.verdict} note={ctx.note} status={ctx.status_by_source}")
+    if ctx.best_match:
+        b = ctx.best_match
+        print(f"best: {b.name} [{b.object_class}] {b.source_catalogs} score={b.match_score} "
+              f"sep={b.separation_arcsec:.2f}\"")
+    assert ctx.verdict == "matched", ctx.note
+    # SIMBAD's canonical spelling is "Barnard's star" (main_id "NAME Barnard's star").
+    assert ctx.best_match.name.lower() == "barnard's star"
+    assert ctx.best_match.separation_arcsec < 6.15

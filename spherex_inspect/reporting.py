@@ -7,6 +7,7 @@ from __future__ import annotations
 from .models import (
     Cutout,
     DiscoveryResult,
+    FieldContext,
     FrameLite,
     FrameMeasurement,
     FramesResponse,
@@ -36,6 +37,7 @@ def inspect_response(
     measurements: list[FrameMeasurement],
     summary: PointSummary,
     warnings: list[str],
+    context: FieldContext | None = None,
 ) -> InspectResponse:
     frames = []
     for c, m in zip(cutouts, measurements):
@@ -52,7 +54,7 @@ def inspect_response(
     status: Status = "ok"
     if cutouts and n_failed == len(cutouts):
         status = "failed"
-    elif n_failed or any("failed" in w for w in warnings):
+    elif n_failed or any("failed" in w for w in warnings):  # incl. "context: catalog(s) failed"
         status = "partial"
-    return InspectResponse(query=target, frames=frames, summary=summary, context=None,
+    return InspectResponse(query=target, frames=frames, summary=summary, context=context,
                            warnings=warnings, status=status)

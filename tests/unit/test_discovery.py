@@ -173,3 +173,25 @@ async def test_collections_fall_back_to_cached_list(monkeypatch, tmp_path):
 
     with pytest.raises(DiscoveryError):
         await FrameDiscovery(Down(rows), cache=diskcache.Cache(str(tmp_path / "empty"))).collections()
+
+
+async def test_sia_rows_cached_and_stale_fallback(monkeypatch, tmp_path):
+    import diskcache
+
+    import spherex_inspect.discovery as disc
+
+    cache = diskcache.Cache(str(tmp_path / "sia"))
+    rows = {"spherex_dr1": [make_row("a", 1, 61000.0, "spherex_dr1")], "spherex_qr2": []}
+    be = FakeBackend(rows)
+    res, w = await FrameDiscovery(be, cache=cache).discover(TARGET)
+    n_calls = be.calls
+    res2, w2 = await FrameDiscovery(be, cache=cache).discover(TARGET)
+    assert be.calls == n_calls and [f.frame_id for f in res2.frames] == ["aD1"]  # served from cache
+    assert w2 == []
+
+    # Past the TTL with IRSA down: the stale list is used, with a warning.
+    monkeypatch.setattr(disc.time, "time", lambda: 1e12)
+    down = FakeBackend(rows, fail={"spherex_dr1", "spherex_qr2"})
+    res3, w3 = await FrameDiscovery(down, cache=cache).discover(TARGET)
+    assert [f.frame_id for f in res3.frames] == ["aD1"]
+    assert any("using the cached frame list" in x for x in w3)
