@@ -1,0 +1,3 @@
+# FITS headers are text, but the files contain binary scientific image data.
+*.fits binary
+*.fits.gz binary
