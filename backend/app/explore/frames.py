@@ -9,7 +9,7 @@ from PIL import Image
 
 from ..local_store import list_targets
 from .common import (BAND_LABELS, BAND_WINDOWS, EXTENT_DEG, LEVELS, PIXEL_SCALE, SIZE_PX, aligned, area_id,
-                     epochs_at, mjd_to_iso, shot_for, shots_at)
+                     epochs_at, has_usable_pixels, in_band, mjd_to_iso, shot_for, shots_at)
 
 IRSA = "https://irsa.ipac.caltech.edu/data/hips/CDS"
 
@@ -46,14 +46,19 @@ def sample_suggestion():
 
 def build_area(ra: float, dec: float):
     """None when nothing is saved for this position."""
-    epochs = epochs_at(ra, dec)
-    if not epochs:
-        return None
     shots = shots_at(ra, dec)
+    # Archive searches can list cutouts whose entire requested region is
+    # masked. They are real exposure records but NOT usable images. Showing
+    # them in the timeline (or claiming their band exists) is misleading.
+    usable = [s for s in shots if has_usable_pixels(s, ra, dec)]
+    if not usable:
+        return None
+    ids = {s.epoch_id for s in usable}
+    epochs = [(e, mjd) for e, mjd in epochs_at(ra, dec) if e in ids]
     target = nearest_target(ra, dec)
     bands = []
     for band in BAND_WINDOWS:
-        frames = [s for s in shots if any(lo <= s.wavelength <= hi for lo, hi in BAND_WINDOWS[band])]
+        frames = [s for s in usable if in_band(band, s.wavelength)]
         if not frames:
             seen = ", ".join(f"{w:.1f}" for w in sorted({round(s.wavelength, 1) for s in shots}))
             bands.append({"id": band, "state": "no-coverage",
@@ -68,7 +73,8 @@ def build_area(ra: float, dec: float):
         "sizePx": SIZE_PX,
         "pixelScaleArcsec": PIXEL_SCALE,
         # `bands`: which rows have an image for this observation, so the page can skip empty ones.
-        "epochs": [{"id": e, "date": mjd_to_iso(m), "bands": [b for b in BAND_WINDOWS if shot_for(ra, dec, e, b)],
+        "epochs": [{"id": e, "date": mjd_to_iso(m), "bands": [
+                        b for b in BAND_WINDOWS if any(s.epoch_id == e and in_band(b, s.wavelength) for s in usable)],
                     "coverage": _coverage(ra, dec, e)} for e, m in epochs],
         "bands": bands,
         # The frames are a small tile; let people zoom out to the sky around it.
@@ -114,7 +120,9 @@ def _stretch(ra: float, dec: float, band: str) -> tuple[float, float]:
         s = shot_for(ra, dec, e, band)
         if s is not None:
             a = aligned(str(s.path), ra, dec)
-            values.append(a[np.isfinite(a)])
+            finite = a[np.isfinite(a)]
+            if finite.size:
+                values.append(finite)
     if not values:
         return 0.0, 1.0
     # Background (the median, after subtraction) maps to black so stars stand out.
