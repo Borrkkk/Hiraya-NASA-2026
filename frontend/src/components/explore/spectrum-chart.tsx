@@ -15,12 +15,17 @@ const PAD = { l: 8, r: 8, t: 8, b: 22 };
 export function SpectrumChart({ spectrum, compact = false }: { spectrum: Spectrum; compact?: boolean }) {
   const [hover, setHover] = useState<number | null>(null);
   const pts = spectrum.points;
-  const xs = pts.map((p) => p.wavelengthUm);
-  const x0 = Math.min(...xs);
-  const x1 = Math.max(...xs);
-  const ymax = Math.max(0.001, ...pts.map((p) => p.flux)) * 1.15;
+  // Always the whole SPHEREx range, so a spectrum with only a few wavelengths
+  // shows plainly where the gaps are.
+  const x0 = 0.75;
+  const x1 = 5;
+  const lo = Math.min(0, ...pts.map((p) => p.flux));
+  const hi = Math.max(1e-6, ...pts.map((p) => p.flux));
+  const pad = (hi - lo) * 0.12;
+  const ymin = lo - (lo < 0 ? pad : 0);
+  const ymax = hi + pad;
   const sx = (w: number) => PAD.l + ((w - x0) / (x1 - x0)) * (W - PAD.l - PAD.r);
-  const sy = (f: number) => H - PAD.b - (f / ymax) * (H - PAD.b - PAD.t);
+  const sy = (f: number) => H - PAD.b - ((f - ymin) / (ymax - ymin)) * (H - PAD.b - PAD.t);
   const d = pts.map((p, i) => `${i ? "L" : "M"}${sx(p.wavelengthUm).toFixed(1)} ${sy(p.flux).toFixed(1)}`).join(" ");
   const features = [...spectrum.features].sort((a, b) => a.wavelengthUm - b.wavelengthUm);
   // One label chip per kind of feature, even if it shows at several wavelengths.
@@ -74,6 +79,10 @@ export function SpectrumChart({ spectrum, compact = false }: { spectrum: Spectru
               />
             ))}
           <path d={d} fill="none" stroke="var(--color-ink)" strokeWidth={1.5} strokeLinejoin="round" />
+          {pts.length <= 12 &&
+            pts.map((p) => (
+              <circle key={p.wavelengthUm} cx={sx(p.wavelengthUm)} cy={sy(p.flux)} r={3.5} fill="var(--color-ground)" stroke="var(--color-ink)" strokeWidth={1.5} />
+            ))}
         </svg>
         {hover !== null && features[hover] && (
           <p className="pointer-events-none absolute inset-x-0 -bottom-1 translate-y-full rounded-xs border border-line-strong bg-overlay px-2 py-1 text-small text-ink">

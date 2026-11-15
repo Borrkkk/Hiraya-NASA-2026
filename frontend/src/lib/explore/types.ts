@@ -47,6 +47,12 @@ export type Epoch = {
   id: string;
   /** When SPHEREx observed this area. Spacing on the timeline is by this date. */
   date: string;
+  /**
+   * The bands this observation has an image for. Each SPHEREx exposure sees a
+   * spot at only a few wavelengths, so some observations have nothing in a given
+   * band. Omit if every band is available at every epoch.
+   */
+  bands?: BandId[];
 };
 
 export type SensorLayer = {
@@ -89,6 +95,13 @@ export type Area = {
   epochs: Epoch[];
   /** One entry per band id, in any order. */
   bands: BandStatus[];
+  /**
+   * Zoom limits in degrees, if the defaults (derived from the pixel scale and
+   * the extent) don't fit, e.g. when frames cover only a small tile and the
+   * user should still be able to zoom out to the surrounding sky.
+   */
+  minFovDeg?: number;
+  maxFovDeg?: number;
   layers: SensorLayer[];
 };
 

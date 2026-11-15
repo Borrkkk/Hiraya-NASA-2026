@@ -40,6 +40,10 @@ curl http://localhost:8000/spherex/timelapse \
 - `GET /spherex/targets`: cached target coordinates, metadata counts, and downloaded frame counts.
 - `GET /spherex/targets/{id}/cutouts/{filename}`: downloaded FITS file.
 
+## Explore page API
+
+`/explore/*` serves the Explore page (area, frames, inspect, motion, verify, search) from the saved cache. See `frontend/docs/explore-backend-integration.md` and `app/explore/router.py`.
+
 ## Bundled local data
 
 The project-root `data/` folder is a copy of the sibling project's saved cache:

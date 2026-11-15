@@ -1,6 +1,8 @@
 import asyncio
 from contextlib import asynccontextmanager
+import ssl
 import httpx
+import truststore
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse
@@ -9,10 +11,13 @@ from .archive import ArchiveError, cutout_url, download, search
 from .imaging import align, render, target_wcs
 from .models import SearchResult, SkyRequest, TimelapseRequest
 from .local_store import cutout_path, list_targets, local_path, search_local
+from .explore.router import router as explore_router
 
 @asynccontextmanager
 async def lifespan(app):
-    async with httpx.AsyncClient(timeout=httpx.Timeout(90, connect=15), follow_redirects=False,
+    # The system trust store, so corporate or conda-less Python installs verify TLS like curl does.
+    tls = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    async with httpx.AsyncClient(verify=tls, timeout=httpx.Timeout(90, connect=15), follow_redirects=False,
                                  limits=httpx.Limits(max_connections=8)) as client:
         app.state.client = client
         app.state.jobs = asyncio.Semaphore(2)
@@ -20,6 +25,8 @@ async def lifespan(app):
         yield
 
 app = FastAPI(title='Pulsr SPHEREx Backend', version='0.1.0', lifespan=lifespan)
+
+app.include_router(explore_router)
 
 @app.exception_handler(ArchiveError)
 async def archive_error(request, exc):

@@ -39,12 +39,12 @@ function fraction(x: number) {
 
 /** The zoom range for an area and a view this wide on screen. */
 export function fovLimits(
-  area: { extentDeg: number; pixelScaleArcsec: number },
+  area: { extentDeg: number; pixelScaleArcsec: number; minFovDeg?: number; maxFovDeg?: number },
   viewWidthPx: number,
 ) {
-  const closest = ((viewWidthPx / MIN_SCREEN_PX_PER_SKY_PX) * area.pixelScaleArcsec) / 3600;
-  const widest = area.extentDeg;
-  return { min: Math.min(closest, widest), max: widest };
+  const max = area.maxFovDeg ?? area.extentDeg;
+  const closest = area.minFovDeg ?? ((viewWidthPx / MIN_SCREEN_PX_PER_SKY_PX) * area.pixelScaleArcsec) / 3600;
+  return { min: Math.min(closest, max), max };
 }
 
 /** Slider position (0 = widest, 1 = closest) from a field of view, on a log scale. */

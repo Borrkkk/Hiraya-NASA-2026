@@ -13,7 +13,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { exploreApi, usingMockData, type Area, type BandId, type Inspection, type MotionResult, type Mover, type SkyBox, type VerifyOutcome } from "@/lib/explore";
+import { NoDataError, exploreApi, usingMockData, type Area, type BandId, type Inspection, type MotionResult, type Mover, type SkyBox, type VerifyOutcome } from "@/lib/explore";
 import { BANDS } from "@/lib/explore/bands";
 import { FrameStore } from "@/lib/explore/frame-store";
 import { awardPoints } from "@/lib/explore/points";
@@ -59,7 +59,8 @@ function useController() {
   const areaQuery = useQuery({
     queryKey: ["explore-area", params.target],
     queryFn: ({ signal }) => exploreApi.getArea(params.target, { signal }),
-    retry: 1,
+    // "Nothing saved here" won't change on a retry.
+    retry: (count, error) => !(error instanceof NoDataError) && count < 1,
   });
   const area: Area | undefined = areaQuery.data;
 
@@ -109,7 +110,8 @@ function useController() {
   const [mode, setMode] = useState<"move" | "select">("move");
   const [box, setBoxState] = useState<SkyBox | null>(null);
   const [moverId, setMoverId] = useState<string | null>(null);
-  const [allEpochs, setAllEpochs] = useState(false);
+  // Each SPHEREx exposure sees a spot at one wavelength, so a spectrum needs them combined.
+  const [allEpochs, setAllEpochs] = useState(true);
   const [motion, setMotion] = useState<MotionState>({ status: "idle" });
   const [verifyState, setVerify] = useState<VerifyState>({ status: "idle" });
 
@@ -120,9 +122,7 @@ function useController() {
   );
   const lastIdx = Math.max(0, epochs.length - 1);
   const urlEpochIdx = params.epoch ? epochs.findIndex((e) => e.id === params.epoch) : -1;
-  const playheadIdx = clamp(playheadOverride ?? (urlEpochIdx >= 0 ? urlEpochIdx : lastIdx), 0, lastIdx);
   const range = useMemo<[number, number]>(() => rangeOverride ?? [0, lastIdx], [rangeOverride, lastIdx]);
-  const playheadEpoch = epochs[playheadIdx];
 
   const bandStatus = useCallback(
     (id: BandId) => area?.bands.find((b) => b.id === id),
@@ -136,6 +136,26 @@ function useController() {
     return first ? [first.id] : [];
   }, [area, bandsOn, bandStatus]);
 
+  // Each exposure sees only some wavelengths: does this observation have any of the bands that are on?
+  const hasData = useCallback(
+    (i: number) => {
+      const bands = epochs[i]?.bands;
+      return !bands || activeBands.some((b) => bands.includes(b));
+    },
+    [epochs, activeBands],
+  );
+  // Open on the latest observation that has something to show.
+  const latestWithData = useMemo(() => {
+    for (let i = lastIdx; i >= 0; i--) if (hasData(i)) return i;
+    return lastIdx;
+  }, [lastIdx, hasData]);
+  const playheadIdx = clamp(
+    playheadOverride ?? (urlEpochIdx >= 0 && hasData(urlEpochIdx) ? urlEpochIdx : latestWithData),
+    0,
+    lastIdx,
+  );
+  const playheadEpoch = epochs[playheadIdx];
+
   // Ask for the visible epoch first, the rest in the background.
   useEffect(() => {
     if (!frames || !epochs.length) return;
@@ -143,14 +163,19 @@ function useController() {
       playheadIdx,
       ...epochs.map((_, i) => i).filter((i) => i !== playheadIdx).sort((a, b) => Math.abs(a - playheadIdx) - Math.abs(b - playheadIdx)),
     ];
-    for (const i of order) for (const b of activeBands) frames.request(epochs[i].id, b);
+    for (const i of order)
+      for (const b of activeBands) if (!epochs[i].bands || epochs[i].bands!.includes(b)) frames.request(epochs[i].id, b);
   }, [frames, epochs, playheadIdx, activeBands]);
 
   const epochLoaded = useCallback(
-    (i: number) => !!frames && !!epochs[i] && activeBands.every((b) => frames.isReady(epochs[i].id, b)),
+    (i: number) =>
+      !!frames &&
+      !!epochs[i] &&
+      hasData(i) &&
+      activeBands.every((b) => (epochs[i].bands && !epochs[i].bands!.includes(b)) || frames.isReady(epochs[i].id, b)),
     // frameVersion makes this re-evaluate as frames arrive.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [frames, epochs, activeBands, frameVersion],
+    [frames, epochs, activeBands, frameVersion, hasData],
   );
   const loadedEpochs = epochs.map((_, i) => epochLoaded(i));
 
@@ -165,6 +190,8 @@ function useController() {
       : anyShown
         ? "ready"
         : "loading";
+  // "Nothing is saved for this spot" is an answer, not a failure: say so, don't offer Retry.
+  const noData = areaQuery.error instanceof NoDataError ? areaQuery.error : null;
   const toolsEnabled = dataStatus === "ready";
   const retryData = useCallback(() => {
     if (areaQuery.isError) areaQuery.refetch();
@@ -390,6 +417,7 @@ function useController() {
     frames,
     frameVersion,
     dataStatus,
+    noData,
     toolsEnabled,
     retryData,
     // choices
@@ -405,6 +433,7 @@ function useController() {
       setPlayhead((p) => clamp(p ?? playheadIdx, r[0], r[1]));
     },
     loadedEpochs,
+    emptyEpochs: epochs.map((_, i) => !hasData(i)),
     playing: isPlaying,
     canPlay,
     play: () => setPlaying(true),

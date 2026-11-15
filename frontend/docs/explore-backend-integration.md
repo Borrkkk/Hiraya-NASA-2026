@@ -1,138 +1,90 @@
-# Explore page: backend integration guide
+# Explore page and its backend
 
-For whoever wires the Explore page (`/explore`) to the real API. The page is
-finished against a **mock**. Swapping the mock for the real backend is meant to
-be one file of glue plus fixing whatever the real shapes turn out to be.
+The Explore page talks to the Python backend in `backend/app/explore/`. The
+contract is `frontend/src/lib/explore/types.ts`; the only file that knows URLs is
+`frontend/src/lib/explore/http-client.ts`. A mock (`lib/explore/mock/`) stays
+for demos with invented data: set `NEXT_PUBLIC_EXPLORE_API=mock`.
 
-## TL;DR
+## Running it
 
-1. Implement the 5 endpoints in the table below (or tell us the real paths and
-   edit `src/lib/explore/http-client.ts`, the only file that knows URLs).
-2. Set `NEXT_PUBLIC_EXPLORE_API=http` and `BACKEND_URL=...` in `frontend/.env.local`.
-3. Open `/explore?ra=83.82&dec=-5.39&fov=2`. Done. Everything else is UI.
+```sh
+cd backend && source .venv/bin/activate && uvicorn app.main:app --port 8000
+cd frontend && pnpm dev          # /api/* is proxied to BACKEND_URL (default localhost:8000)
+```
 
-If a real response differs from `src/lib/explore/types.ts`, **change the types
-and let TypeScript (`pnpm typecheck`) point at every place that needs updating**.
-Don't reshape data in components.
+Open `/explore?q=Barnard%27s%20Star&ra=269.452076&dec=4.693391&fov=0.25`.
+`cd backend && python -m pytest` runs the tests (`tests/test_explore.py`).
 
-## Where things are
+## Endpoints
 
-| Path | What it is |
-| --- | --- |
-| `src/lib/explore/types.ts` | The whole data contract. Read this first. |
-| `src/lib/explore/api.ts` | `ExploreApi` interface: 5 methods, documented. |
-| `src/lib/explore/http-client.ts` | Real client. Written blind against the table below. |
-| `src/lib/explore/mock/` | Mock client + procedural sky. Delete once the real API is solid. |
-| `src/lib/explore/index.ts` | Picks mock vs http from `NEXT_PUBLIC_EXPLORE_API`. |
-| `src/lib/explore/bands.ts` | The 9 "things to look for": names, copy, colours. Frontend-owned. |
-| `src/lib/explore/frame-store.ts` | Frame cache and loader (concurrency 3). |
-| `src/lib/explore/motion-language.ts` | Speed and direction wording. **Suggestion thresholds are placeholders.** |
-| `src/lib/explore/points.ts` | Rarity table for points (localStorage). Placeholder numbers. |
-| `src/lib/explore/share.ts` | "Share this find" hand-off (see below). |
-| `src/components/explore/use-explore.tsx` | The page controller: all state, the async flows, URL sync. |
-| `src/components/explore/*` | The UI. Components only talk to `useExplore()`. |
-
-`src/lib/explore/href.ts` (`exploreHref`) is what the **home** screen uses to
-link in. It defines the URL contract: `ra`, `dec` (degrees), `fov` (degrees, horizontal), optional `q` (name).
-
-## Endpoints the http client expects
-
-Paths are relative to the backend root. The browser calls `/api/...` and
-`next.config.ts` rewrites it to `BACKEND_URL`, so there is no CORS.
-
-| Method | Path | Returns |
+| | Path | Notes |
 | --- | --- | --- |
-| GET | `/explore/area?ra&dec&fov` | `Area` (JSON). Quick, no pixels. |
-| GET | `/explore/areas/{areaId}/frames/{epochId}/{band}` | An image (PNG/WebP/JPEG, greyscale). |
-| POST | `/explore/areas/{areaId}/inspect` body `InspectRequest` | `Inspection` |
-| POST | `/explore/areas/{areaId}/motion` body `MotionRequest` | `MotionResult`, or `{ jobId }` |
-| POST | `/explore/areas/{areaId}/verify` body `VerifyRequest` | `VerifyOutcome`, or `{ jobId }` |
-| GET | `/explore/jobs/{jobId}` | `{status:"running",step?}` / `{status:"done",result}` / `{status:"failed",message?}` |
+| GET | `/explore/area?ra&dec&fov` | Area, epochs, per-band coverage, sensor layers. 404 `{detail:{message,suggestion}}` when SPHEREx hasn't observed the spot; 502 if IRSA is unreachable. |
+| GET | `/explore/areas/{id}/frames/{epoch}/{band}` | Greyscale PNG, 128x128 px at 6.15"/px, north up, east left, transparent where there is no data. |
+| POST | `/explore/areas/{id}/inspect` | Type guess, ranked candidates, spectrum for a box or mover. |
+| POST | `/explore/areas/{id}/motion` | `{jobId}`. Detects point sources per exposure, links them, keeps shifts over 1.5 px. |
+| POST | `/explore/areas/{id}/verify` | `{jobId}`. Saved target list, SIMBAD, SkyBoT, then an instrument-quality check. |
+| GET | `/explore/jobs/{id}` | `{status, step?, result?, message?}`; `step` is shown to the user. |
+| GET | `/explore/search?q=` | Saved SPHEREx targets (images first), plus SIMBAD names when online. Used by the home search. |
 
-`motion` and `verify` are slow. The client handles both styles: return the
-result straight from the POST, **or** return `{ jobId }` and let the client poll
-`/explore/jobs/{id}` every 700 ms. The `step` string is shown to the user as
-the progress message, so make it plain language ("Checking known asteroids…").
-All shapes are in `types.ts`. Aborts are passed through as `AbortSignal`.
+## What is real
 
-## The one thing to get right: frames and alignment
+- **Epochs**: each exposure is an epoch (id = observation id, date from MJD).
+- **Bands**: the page's nine rows are wavelength windows (`BAND_WINDOWS` in
+  `explore/common.py`). A row has data only if a saved exposure's wavelength at
+  that spot falls in its window. The wavelength comes from each FITS file's
+  `WCS-WAVE` table. Barnard's Star has two exposures at 0.757 and 0.7745 micrometres,
+  so only Starlight is enabled; the rest are disabled with a reason that lists
+  the wavelengths we do have. Live spots get up to 10 observations and more rows.
+- **Spectrum**: one point per exposure (its wavelength at the box, and the mean
+  background-subtracted flux in the box, MJy/sr). A spot with two exposures has a
+  two-point spectrum, and the chart shows the full 0.75 to 5 micrometre range so the
+  gaps are visible. Feature labels are empty until there are enough wavelengths.
+- **Motion**: real source detection and tracking on the aligned frames. Two exposures
+  two minutes apart correctly find nothing.
+- **Artifact check**: share of the box with valid data (the pipeline flags and the
+  frame edge both mask pixels).
 
-The page blends bands itself on a canvas, so toggling a band is instant and
-needs no request. So the backend serves **one monochrome image per (epoch, band)**,
-not a pre-coloured composite.
+## What is a rule or a placeholder
 
-Each frame must satisfy:
+- The type guess is rule-based on computed facts (signal to noise, compactness,
+  valid fraction, mover speed). Thresholds are placeholders: top of `analysis.py`.
+- Speed wording thresholds ("What this suggests") are placeholders: `motion-language.ts`.
+- Band windows and wavelengths need science-team validation.
+- Points table: `points.ts`.
 
-- `area.sizePx` pixels square, covering `area.extentDeg` degrees on a side.
-- **Gnomonic (TAN) projection centred on `area.center`**, north up, **east to the left**.
-  Pixel (0,0) is the north-east corner.
-- 0 = no signal, 255 = bright, already stretched for display, **stretched the same
-  way across epochs and bands** so brightness is comparable.
-- `area.pixelScaleArcsec` is the real arcseconds per pixel. It sets the zoom limit
-  (we stop at about 4 screen pixels per frame pixel).
+## Where the data comes from
 
-The user can pan and zoom inside the extent only. The view is drawn with a
-small affine fit around the view centre (`frameTransform` in `projection.ts`),
-which is accurate for fields up to a few degrees. For very large extents
-(10 degrees or more) expect a few pixels of drift at the edges. If that bites,
-reproject on the server or tile the frames.
+For any position the backend first looks in the saved cache (`data/`, Barnard's
+Star only), and otherwise fetches **live from NASA/IPAC (IRSA)**
+(`backend/app/explore/sources.py`): one SIA search per collection, the earliest 10
+observations, and a small native cutout per detector. Cutouts are cached in
+`backend/.cache/cutouts/`, so the first visit to a spot takes about 10 to 40 seconds
+and every later one is instant. Needs internet (IRSA); TLS uses the system trust
+store (`truststore`), because some Python installs reject IRSA's certificate.
 
-SPHEREx caveat from the spec: one exposure holds a range of wavelengths, so "band X at
-epoch Y" may be assembled from several exposures. That is the backend's job.
-The frontend only ever sees the assembled frame.
+Each SPHEREx exposure sees a spot at one wavelength per detector, so an observation
+only has images for some of the page's band rows. `Epoch.bands` lists them, the page
+opens on the latest observation that has data for the bands that are on, skips empty
+ones when playing, and marks them on the timeline.
 
-## Sensors and the curtain
+## Known limits
 
-`Area.layers` lists the other sensors. `hips` is an **Aladin Lite HiPS base URL**
-handed straight to Aladin, which draws it on the right of the curtain. The mock
-returns real IRSA mirrors (WISE, 2MASS, DSS2, IRAS), which work today. Set
-`coverage: { ok: false, reason }` for sensors with no coverage here; they show
-disabled with the reason. The Aladin cutout that shows while SPHEREx loads
-(and when it fails) is DSS2 from the same mirror: `PLACEHOLDER` in `sky-view.tsx`.
-
-Aladin is the placeholder only; the page owns the view and pushes it into Aladin
-each frame, so everything stays aligned. Aladin's logo is kept visible (its terms
-of use); see `.explore-view .aladin-logo-container` in `globals.css`.
-
-## What is mock today (and how to tell)
-
-Everything behind `ExploreApi`: frames (procedural stars, clouds and three moving
-things), the spectrum, the type guess, motion tracks, verify outcomes, epochs
-(5, uneven dates). The page shows a "Mock SPHEREx data" tag while the mock is on.
-The mock stars do **not** match the real sky, so dragging the curtain over a real
-layer shows two different skies. That goes away with real frames.
-
-Mock-only test switches, as `?mock=` on the Explore URL (comma separated):
-`fail-data`, `fail-motion`, `fail-verify`, `no-movers`, `slow`.
-
-## Spec items that are placeholders until decided
-
-- **Suggestion thresholds** (`SUGGESTION_THRESHOLDS` in `motion-language.ts`): need the science team (spec Q10).
-- **Band wavelengths and copy** (`bands.ts`): to be validated by the science team.
-- **Points table** (`points.ts`): numbers are made up.
-- **Zoom limit**: 4 screen px per sensor pixel (`fov.ts`), to be tuned.
-- **Default bands**: Starlight + Warm glow. **Spectrum epoch**: the one under the playhead, with an "All combined" toggle (spec Q3).
-- **Secondary sensor epochs**: not used; layers stay fixed (spec Q4).
-- **Verify partial matches** (spec Q7): the contract has `unexplained.nearMatch`; the backend decides the threshold.
-- **Move / Select toggle** plus Shift+drag (spec Q1) is in.
+- **SIMBAD and SkyBoT lookups are untested against the live services.** They are covered
+  by a mocked-transport test and fail quietly offline, in which case Verify says only the
+  saved list and instrument checks were available.
+- Saturated regions (the Orion core) are masked by the SPHEREx pipeline, so the tile has
+  holes there. That is real, and a box in a hole is reported as an artifact.
+- The tile is 0.22 degrees wide (128 px at 6.15"/px); the page lets you zoom out to
+  1.5 degrees, where it sits on the Aladin sky around it (`minFovDeg` / `maxFovDeg`).
+- Barnard's Star has moved about 265 arcseconds since J2000, which is what the saved cutouts
+  are centred on, so the star is outside them. Verify compares against its position at the
+  observation date (`PROPER_MOTION` in `verify.py`). Live areas are centred where you ask.
+- The first load of a new spot is slow; there is no job queue yet (the area call just waits).
+- Fixed along the way: `archive.parse_results` read IRSA's table by column ID, which IRSA
+  does not set, so every live search failed. It now reads by name.
 
 ## Share this find
 
-Only the entry point exists. The button (unexplained results only) stores a
-`ShareDraft` (box, bands, epochs, spectrum, track, view URL) in `sessionStorage`
-under `SHARE_KEY` and goes to the placeholder route `/share`. The Share flow can
-read the draft from there.
-
-## URL state
-
-The page keeps the URL current (`ra`, `dec`, `fov`, `bands`, `epoch`, `layer`), so
-"Copy link" is just the address bar. The selection box and analysis results are
-not in the URL yet.
-
-## Things I'd check first on first contact
-
-1. Frame orientation and alignment (flipped east/west is the classic one). Put
-   a real star on the page and compare with the WISE layer through the curtain.
-2. `Area.epochs` order does not matter (the page sorts by date), but ids must be stable.
-3. Response times of `inspect`: the page calls it ~220 ms after a box stops changing.
-4. Frame size: the page decodes with `createImageBitmap`, so a few MB per frame is fine, 100 MB is not.
+Entry point only: the draft is stored in `sessionStorage` (`lib/explore/share.ts`)
+and the page goes to a placeholder `/share`.

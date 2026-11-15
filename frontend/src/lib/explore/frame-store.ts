@@ -79,6 +79,26 @@ export class FrameStore {
     this.emit();
   }
 
+  /** The frame's footprint in black, to put under the picture where there is data. */
+  shadowFrame(epochId: string, band: BandId): HTMLCanvasElement | null {
+    const f = this.get(epochId, band);
+    if (f?.status !== "ready") return null;
+    const key = `${FrameStore.key(epochId, band)}|shadow`;
+    let c = this.tinted.get(key);
+    if (!c) {
+      c = document.createElement("canvas");
+      c.width = f.bitmap.width;
+      c.height = f.bitmap.height;
+      const g = c.getContext("2d")!;
+      g.fillStyle = "#000";
+      g.fillRect(0, 0, c.width, c.height);
+      g.globalCompositeOperation = "destination-in";
+      g.drawImage(f.bitmap, 0, 0);
+      this.tinted.set(key, c);
+    }
+    return c;
+  }
+
   /** The band's frame as a coloured canvas, ready to add into the blend. */
   tintedFrame(epochId: string, band: BandId, color: string): HTMLCanvasElement | null {
     const f = this.get(epochId, band);
@@ -94,6 +114,9 @@ export class FrameStore {
       g.globalCompositeOperation = "multiply";
       g.fillStyle = color;
       g.fillRect(0, 0, c.width, c.height);
+      // Multiply would paint over transparent (no-data) pixels; put the alpha back.
+      g.globalCompositeOperation = "destination-in";
+      g.drawImage(f.bitmap, 0, 0);
       this.tinted.set(key, c);
     }
     return c;

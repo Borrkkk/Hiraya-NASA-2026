@@ -161,12 +161,16 @@ export function SkyView() {
     g.beginPath();
     g.rect(0, 0, Math.max(0, cx) * dpr, canvas.height);
     g.clip();
-    g.fillStyle = "#000";
-    g.fillRect(0, 0, canvas.width, canvas.height);
-    g.globalCompositeOperation = "lighter";
     g.imageSmoothingQuality = "high";
     const [ta, tb, tc, td, te, tf] = frameTransform(area, v, s.w, s.h);
     g.setTransform(ta * dpr, tb * dpr, tc * dpr, td * dpr, te * dpr, tf * dpr);
+    // Black only where the frames have data, so a small or ragged tile sits on
+    // the Aladin sky around it instead of hiding it.
+    for (const id of bandsOn) {
+      const shadow = frames.shadowFrame(playheadEpoch.id, id);
+      if (shadow) g.drawImage(shadow, 0, 0);
+    }
+    g.globalCompositeOperation = "lighter";
     let any = false;
     for (const id of bandsOn) {
       const tinted = frames.tintedFrame(playheadEpoch.id, id, getBand(id).color);

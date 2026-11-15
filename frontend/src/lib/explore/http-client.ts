@@ -1,4 +1,5 @@
-import { api, apiBlob } from "@/lib/api";
+import { ApiError, api, apiBlob } from "@/lib/api";
+import { NoDataError } from "./errors";
 import type { ExploreApi } from "./api";
 import type {
   Area,
@@ -9,11 +10,8 @@ import type {
 } from "./types";
 
 /**
- * The real backend client. Written against the endpoints proposed in
- * frontend/docs/explore-backend-integration.md. If the Python API picks
- * different paths or field names, this file is the only place to change
- * (plus types.ts if the shapes differ). Not exercised against a live server
- * yet: it was written blind, so expect small fixes on first contact.
+ * The real backend client (backend/app/explore). It is the only file that knows
+ * the URLs; the shapes are in types.ts.
  *
  * Browser calls go to same-origin /api/*, which next.config.ts proxies to
  * BACKEND_URL, so the paths below are relative to the backend root.
@@ -64,8 +62,16 @@ function sleep(ms: number, signal?: AbortSignal) {
 }
 
 export const httpExploreApi: ExploreApi = {
-  getArea: (req, opts) =>
-    api<Area>(`/explore/area?ra=${req.ra}&dec=${req.dec}&fov=${req.fov}`, { signal: opts?.signal }),
+  getArea: async (req, opts) => {
+    try {
+      return await api<Area>(`/explore/area?ra=${req.ra}&dec=${req.dec}&fov=${req.fov}`, { signal: opts?.signal });
+    } catch (e) {
+      // 404 with { detail: { message, suggestion } } means "nothing saved here", not "broken".
+      const detail = e instanceof ApiError && e.status === 404 ? (e.body as { detail?: { message?: string; suggestion?: NoDataError["suggestion"] } })?.detail : null;
+      if (detail?.message) throw new NoDataError(detail.message, detail.suggestion);
+      throw e;
+    }
+  },
 
   fetchFrame: ({ areaId, epochId, band }, opts) =>
     apiBlob(

@@ -1,6 +1,8 @@
 "use client";
 
-import { MousePointer2, Move, RefreshCw, SquareDashed } from "lucide-react";
+import { Database, Move, RefreshCw, SquareDashed } from "lucide-react";
+import Link from "next/link";
+import { exploreHref } from "@/lib/explore/href";
 import { cn } from "@/lib/cn";
 import { useExplore } from "./use-explore";
 
@@ -46,7 +48,7 @@ export function ViewControls() {
 
 /** Loading, error, and "range changed" notes at the top of the view. */
 export function ViewStatus() {
-  const { dataStatus, retryData, outdated, motion, usingMock } = useExplore();
+  const { dataStatus, noData, retryData, outdated, motion, usingMock } = useExplore();
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 top-[68px] z-[5] flex flex-col items-center gap-2 px-4">
@@ -59,7 +61,23 @@ export function ViewStatus() {
             Loading real SPHEREx data…
           </p>
         )}
-        {dataStatus === "error" && (
+        {noData && (
+          <div
+            role="status"
+            className="pointer-events-auto flex max-w-[520px] flex-col gap-2 rounded-lg border border-line-strong bg-ground/90 px-4 py-3 text-small text-ink"
+          >
+            <p>{noData.message} The sky behind is a visible-light stand-in.</p>
+            {noData.suggestion && (
+              <Link
+                href={exploreHref({ q: noData.suggestion.name, ra: noData.suggestion.ra, dec: noData.suggestion.dec, fov: noData.suggestion.fov })}
+                className="w-fit rounded-xs underline underline-offset-4 hover:text-ink-secondary"
+              >
+                Try {noData.suggestion.name}, which has images
+              </Link>
+            )}
+          </div>
+        )}
+        {dataStatus === "error" && !noData && (
           <p
             role="alert"
             className="pointer-events-auto inline-flex items-center gap-3 rounded-lg border border-line-strong bg-ground/90 py-1.5 pl-3 pr-1.5 text-small text-ink"
@@ -81,12 +99,10 @@ export function ViewStatus() {
           </p>
         )}
       </div>
-      {usingMock && (
-        <p className="pointer-events-none absolute bottom-3 left-3 z-[5] inline-flex items-center gap-2 rounded-xs bg-scrim px-2 py-1 text-caption text-ink-secondary">
-          <MousePointer2 size={12} strokeWidth={1.5} aria-hidden="true" />
-          Mock SPHEREx data
-        </p>
-      )}
+      <p className="pointer-events-none absolute bottom-3 left-3 z-[5] inline-flex items-center gap-2 rounded-xs bg-scrim px-2 py-1 text-caption text-ink-secondary">
+        <Database size={12} strokeWidth={1.5} aria-hidden="true" />
+        {usingMock ? "Mock SPHEREx data" : "SPHEREx · NASA/JPL-Caltech, IRSA"}
+      </p>
     </>
   );
 }
