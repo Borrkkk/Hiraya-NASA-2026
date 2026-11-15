@@ -33,7 +33,7 @@ pnpm demo:check                   # pre-flight: files, app, sky backdrop
 
 Start on `/` . Before going live, once: open the Explore page and click through steps 2 to 5 to warm the browser cache.
 
-1. **Home.** The sky rests on *Barnard's Star* (label and orange reticle). Type "barnard" in the search box, press Enter.
+1. **Home.** The sky opens on the Orion Nebula, then dissolves to *Barnard's Star* after about 10 seconds and rests there (label and orange reticle). Don't click the sky during the intro; the Explore page only has data for Barnard's Star. Type "barnard" in the search box, press Enter.
    *Say:* the closest single star system after Alpha Centauri, 6 light-years away, and it moves faster across our sky than any other star.
 2. **Explore opens** on the star: bands *Starlight* and *4–5 µm light*, 12 observations, newest on the right.
    *Say:* each dot on the timeline is one SPHEREx visit, over 15 months.
@@ -47,7 +47,23 @@ Start on `/` . Before going live, once: open the Explore page and click through 
    * **2**: about 7 arcseconds a year, toward the lower left. Nobody told the page about this one.
 8. **Click mover 2.** Guess: **Brown dwarf**, "faint in starlight but bright at 4 to 5 µm, with a methane dip". Spectrum shows the methane dips.
 9. **Verify** on mover 2: **Unexplained**, "Closest match, but it doesn't fit". *Say:* that is not a discovery, it means our sources don't list it. Someone else may know. That's why we have
-10. **Discuss suspected motion** (needs the backend) to hand it to the community.
+10. **Discuss suspected motion** (needs the backend). Give it a title and a few words, then **Create discussion post**. The post opens with a
+    still snapshot, a **Blink** GIF of the observations with the ring following the object, the colourful spectrum and a data summary.
+11. **Discussions** (top right, any page) lists every discussion: the five prepared ones, yours and the notebook posts. Search, sort by newest or most replies.
+
+## Discussions (backend)
+
+The community layer lives in the backend (SQLite). For the demo it is seeded with five simulated conversations about the Barnard's Star field,
+each with a snapshot, blink GIF, spectrum and replies. The find itself is deliberately **not** seeded, so you can post it live.
+
+```bash
+cd backend
+.venv/bin/python -m app.explore.seed_demo_discussions            # add or refresh the five samples
+.venv/bin/python -m app.explore.seed_demo_discussions --reset    # also clear a live post about the find, to demo posting again
+```
+
+Posts about the demo patch get simulated media from the prefetched frames (`backend/app/explore/demo_media.py`); posts anywhere else use the real
+cutouts as before. Restart the backend after pulling these changes.
 
 ## Things that behave differently on purpose
 
@@ -64,7 +80,8 @@ Start on `/` . Before going live, once: open the Explore page and click through 
 | Black around the picture, Compare layers empty | No internet for IRSA tiles. The SPHEREx steps still work; skip step 4. |
 | "This demo only has SPHEREx images…" | You left Barnard's Star. Click the link, or load `/explore?q=Barnard%27s%20Star&ra=269.4463&dec=4.7682&fov=0.2`. |
 | Odd state after poking around | Reload that URL; the page rebuilds from it. |
-| Discussions / Share do nothing | Backend isn't running. Skip step 10. |
+| Discussions / Share do nothing | Backend isn't running. Skip steps 10 and 11. |
+| The find already has a discussion (you posted it before) | Run the seed script with `--reset`. |
 | Anything else | `pnpm demo:check`, then restart `pnpm start`. |
 
 ## How it works

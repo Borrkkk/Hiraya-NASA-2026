@@ -5,7 +5,7 @@ export type Finding = {
   id: string; title: string; body: string; author: string; created_at: string;
   box: SkyBox; status: 'suspected-motion';
   evidence: { bands: string[]; epochs: string[]; track: { ra: number; dec: number; epochId: string; date: string }[]; view?: { ra: number; dec: number; fov: number } | null;
-    sample?: boolean; authorId?: string; summary?: string; summaryMethod?: 'data' | 'ai';
+    sample?: boolean; demo?: boolean; authorId?: string; summary?: string; summaryMethod?: 'data' | 'ai';
     image?: { url: string; caption: string; date: string; detector: number; wavelengthUm: number; band: string; extentDeg: number; contextUrl?: string };
     animation?: { url: string; frameCount: number; caption: string; frames: { date: string; epochId: string; wavelengthUm: number }[] };
     spectrum?: Spectrum;

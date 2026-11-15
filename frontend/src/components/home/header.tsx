@@ -20,6 +20,9 @@ export function HomeHeader() {
       <SkySearch className="min-w-0 w-full max-w-[560px] flex-1" />
 
       <div className="ml-auto flex items-center gap-3">
+        <Link href="/discussions" className="hidden h-10 items-center rounded-md px-3 text-small text-ink-secondary transition-colors duration-(--dur-feedback) ease-standard hover:bg-raised hover:text-ink sm:inline-flex">
+          Discussions
+        </Link>
         <ThemeToggle />
         <span className="hidden font-mono text-mono tabular-nums text-ink-secondary lg:block">
           1,240 pts

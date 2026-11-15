@@ -36,7 +36,8 @@ export function ObjectMarkers({ proj }: { proj: Projection }) {
   });
   return <g aria-label="Known matches and community findings">
     {query.data?.markers.map((marker) => {
-      if (marker.kind === 'finding' && !ex.showDiscussionPosts) return null;
+      // Discussion markers sit on top of the motion tracks, so they step aside while motion is shown.
+      if (marker.kind === 'finding' && (!ex.showDiscussionPosts || ex.motionVisible)) return null;
       if (marker.kind === 'identified' && marker.epoch !== 'all' && marker.epoch !== ex.playheadEpoch?.id) return null;
       const [x, y] = proj.toScreen(marker.ra, marker.dec);
       if (!Number.isFinite(x) || !Number.isFinite(y)) return null;

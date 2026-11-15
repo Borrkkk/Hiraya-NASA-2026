@@ -185,3 +185,27 @@
   bottom: 12px;
   left: auto;
 }
+
+/* Spectrum chart: the curve draws itself and the dots pop in. */
+@keyframes spectrum-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes spectrum-pop {
+  from { opacity: 0; transform: scale(0.2); }
+  to { opacity: 1; transform: scale(1); }
+}
+.spectrum-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: spectrum-draw 900ms var(--ease-standard, ease-out) both;
+}
+.spectrum-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: spectrum-pop 320ms var(--ease-standard, ease-out) both;
+  transition: r 120ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spectrum-draw, .spectrum-dot { animation: none; }
+}

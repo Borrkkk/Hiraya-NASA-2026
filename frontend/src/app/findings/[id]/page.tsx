@@ -47,7 +47,7 @@ function FindingContent() {
   return <div className="min-h-dvh bg-ground">
     <HomeHeader />
     <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 pb-12 pt-5 sm:px-6">
-      <nav className="flex items-center justify-between text-small text-ink-secondary"><Link href="/" className="hover:text-ink">← Field notes</Link><Link href={href} className="rounded-full border border-line-strong px-4 py-2 hover:text-ink">Explore this region ↗</Link></nav>
+      <nav className="flex items-center justify-between text-small text-ink-secondary"><Link href="/discussions" className="hover:text-ink">← All discussions</Link><Link href={href} className="rounded-full border border-line-strong px-4 py-2 hover:text-ink">Explore this region ↗</Link></nav>
       {query.isPending ? <p role="status">Loading discussion…</p> : query.isError ? <div role="alert">This post could not be loaded. <button className="underline" onClick={() => query.refetch()}>Retry</button></div> : post && <>
         <header className="flex flex-col gap-4">
           <p className="text-small uppercase tracking-widest text-ink-secondary">Field notes · SPHEREx</p>
@@ -125,7 +125,7 @@ function FindingContent() {
               <details className="mt-3"><summary className="cursor-pointer">Observation evidence</summary><ul className="mt-2 space-y-1">{post.evidence.epochs.map((epoch) => <li key={epoch} className="break-all font-mono text-caption">{epoch}</li>)}</ul>
                 {post.evidence.track.map((point, index) => <p key={index} className="font-mono text-caption">{point.date} · {point.ra.toFixed(5)}°, {point.dec.toFixed(5)}°</p>)}</details>
             </section>
-            {post.evidence.sample && <p className="text-caption text-ink-secondary">Provenance: real SPHEREx observations and calculated measurements; conversation prepared for the app demonstration.</p>}
+            {post.evidence.demo ? <p className="text-caption text-ink-secondary">Provenance: simulated demo images and measurements{post.evidence.sample ? '; conversation prepared for the app demonstration' : ''}.</p> : post.evidence.sample && <p className="text-caption text-ink-secondary">Provenance: real SPHEREx observations and calculated measurements; conversation prepared for the app demonstration.</p>}
           </aside>
         </div>
       </>}

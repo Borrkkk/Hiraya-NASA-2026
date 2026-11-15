@@ -16,6 +16,7 @@ import { BARE_ALADIN_OPTIONS, loadAladin, type AladinInstance } from "@/lib/sky/
 import { Curtain } from "./curtain";
 import { LayerPicker } from "./layer-picker";
 import { MotionOverlay } from "./motion-overlay";
+import { SkyGrid } from "./sky-grid";
 import { SelectionBox } from "./selection-box";
 import { ViewControls, ViewStatus } from "./view-chrome";
 import { useExplore } from "./use-explore";
@@ -309,6 +310,7 @@ export function SkyView() {
 
       {/* 4. overlays */}
       <svg className="pointer-events-none absolute inset-0 z-[3] size-full" width={size.w} height={size.h}>
+        {ex.showGrid && <SkyGrid proj={proj} />}
         <MotionOverlay proj={proj} />
         <ObjectMarkers key={ex.showDiscussionPosts ? 'discussions-shown' : 'discussions-hidden'} proj={proj} />
         {boxShown && (

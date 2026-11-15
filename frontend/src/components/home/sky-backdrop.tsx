@@ -19,9 +19,11 @@ const SURVEY = "https://irsa.ipac.caltech.edu/data/hips/CDS/DSS2/color";
 
 // Where the tour goes, in order: objects that look spectacular in DSS2 at a
 // wide field. Names and positions come from the catalogue, so the label is true.
-// Demo build: it rests on Barnard's Star, the one place the Explore page has
-// prefetched SPHEREx data for (public/demo). Add stops here to tour more sky.
+// Demo build: open on something spectacular, then settle on Barnard's Star, the
+// one place the Explore page has prefetched SPHEREx data for (public/demo).
+// The tour stops at the last entry; add stops before it to make the intro longer.
 const TOUR = [
+  { id: "orion-nebula", fov: 5 },
   { id: "barnard", fov: 0.5 },
 ].map((t) => {
   const o = getObject(t.id);
@@ -152,7 +154,7 @@ export function SkyBackdrop({ className }: { className?: string }) {
     // frame as an overlay, jump underneath it (one patch of tiles, tops), let
     // those load, then dissolve the old frame away. Never black, never blocky.
     const next = async () => {
-      if (cancelled || !aladin || TOUR.length < 2) return;
+      if (cancelled || !aladin || index >= TOUR.length - 1) return; // rests on the last stop
       if (confirming.current || userHolding || document.hidden) return schedule(2_000);
 
       index = (index + 1) % TOUR.length;

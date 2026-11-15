@@ -197,6 +197,15 @@ def attach_media(identifier):
             return
         post = finding(row)
     evidence = post['evidence']
+    # A post about the demo patch gets simulated media from the prefetched demo frames.
+    from . import demo_media
+    built = demo_media.build(identifier, post)
+    if built:
+        evidence.update(built)
+        evidence.update(summary=demo_media.summary(evidence), summaryMethod='data')
+        with database() as connection:
+            connection.execute('UPDATE findings SET evidence=? WHERE id=?', (json.dumps(evidence), identifier))
+        return
     view = evidence.get('view') or post['box']
     ra, dec = key(view['ra'], view['dec'])
     shots = [s for s in SHOTS.get((ra, dec), ()) if s.epoch_id in evidence['epochs']]

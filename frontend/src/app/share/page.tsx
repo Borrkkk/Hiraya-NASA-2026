@@ -56,6 +56,7 @@ export default function SharePage() {
     <h1 className="text-h1 text-ink">Discuss suspected motion</h1>
     {!loaded ? <p role="status">Loading your selection…</p> : !draft ? <p>Select a region in Explore, then choose “Discuss suspected motion.” Your selection must be in this tab.</p> : <>
       <p className="text-body-sm text-ink-secondary">Share the observations you want others to check. This post records a suspected signal, not a confirmed discovery.</p>
+      <p className="text-small text-ink-secondary">A snapshot, a blink animation of the selected observations and the brightness plot are attached automatically when you post.</p>
       <p className="font-mono text-small">RA {draft.box.ra.toFixed(5)}° · Dec {draft.box.dec.toFixed(5)}° · {draft.epochs.length} observations</p>
       {existing.isPending ? <p role="status">Checking for an existing discussion…</p> : existing.isError ? <div role="alert"><p>Could not check existing discussions.</p><button className="underline" onClick={() => existing.refetch()}>Retry</button></div> : existing.data?.finding ?
         <div className="rounded-lg border border-line-strong bg-surface p-5"><p>This region already has a post. Add your evidence there.</p><Link className="mt-3 block underline" href={`/findings/${existing.data.finding.id}`}>{existing.data.finding.title}</Link></div> :

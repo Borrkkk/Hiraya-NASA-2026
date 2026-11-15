@@ -41,10 +41,16 @@ export function TopBar() {
           {formatCoords(c.ra, c.dec)}
         </span>
       </h1>
+      <Link
+        href="/discussions"
+        className="ml-auto inline-flex h-10 shrink-0 items-center rounded-md px-3 text-small text-ink-secondary transition-colors duration-(--dur-feedback) ease-standard hover:bg-raised hover:text-ink"
+      >
+        Discussions
+      </Link>
       <button
         type="button"
         onClick={copy}
-        className="ml-auto inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-md border border-line-strong bg-raised px-3 text-small text-ink transition-colors duration-(--dur-feedback) ease-standard hover:bg-overlay"
+        className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-md border border-line-strong bg-raised px-3 text-small text-ink transition-colors duration-(--dur-feedback) ease-standard hover:bg-overlay"
       >
         {copied ? <Check size={16} strokeWidth={1.5} aria-hidden="true" /> : <Link2 size={16} strokeWidth={1.5} aria-hidden="true" />}
         {copied ? "Link copied" : "Copy link"}
