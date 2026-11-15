@@ -5,27 +5,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Reticle } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { exploreHref } from "@/lib/explore";
+import { loadAladin, type AladinInstance } from "@/lib/sky/aladin";
+import { exploreHref } from "@/lib/explore/href";
 import { getObject } from "@/lib/sky/catalog";
 import { formatCoords } from "@/lib/sky/format";
-
-// Aladin Lite ships no TypeScript types; this is the slice of its API we use.
-type AladinInstance = {
-  getRaDec: () => [number, number];
-  getFov: () => [number, number];
-  gotoRaDec: (ra: number, dec: number) => void;
-  setFoV: (fov: number) => void;
-  zoomToFoV: (fov: number, seconds: number, done?: () => void) => void;
-  stopAnimation: () => void;
-  /** Internal, but the public getViewDataURL ignores its options. */
-  view: { getCanvasDataURL: (format: string, w?: number, h?: number, logo?: boolean) => Promise<string> };
-  on: (event: string, cb: (e: ClickEvent) => void) => void;
-};
-type ClickEvent = { ra: number; dec: number; isDragging?: boolean };
-type AladinModule = {
-  init: Promise<void>;
-  aladin: (el: HTMLElement, options: Record<string, unknown>) => AladinInstance;
-};
 
 // DSS2 colour, from NASA/IPAC IRSA's HiPS mirror. This is visible light, not
 // infrared: for a decorative backdrop it's the cleanest, prettiest all-sky
@@ -223,10 +206,7 @@ export function SkyBackdrop({ className }: { className?: string }) {
 
     (async () => {
       try {
-        // Importing aladin-lite touches WebGL/WASM at module load, so it can
-        // only happen in the browser.
-        const A = (await import("aladin-lite")).default as AladinModule;
-        await A.init;
+        const A = await loadAladin();
         if (cancelled) return;
 
         const first = previousView ?? TOUR[0];

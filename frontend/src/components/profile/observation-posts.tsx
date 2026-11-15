@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowUpRight, Bookmark, Check, Pin, SlidersHorizontal } from "lucide-react";
 import { Avatar, Chip, SkyImage, Verdict } from "@/components/ui";
-import { exploreHref } from "@/lib/explore";
+import { exploreHref } from "@/lib/explore/href";
 import { getObject } from "@/lib/sky/catalog";
 import { PostDiscussion } from "@/components/discussion/post-discussion";
 import { profileHref, type UserProfile, type ObservationPost } from "@/lib/profiles";

@@ -6,3 +6,4 @@ numpy>=2,<3
 scipy>=1.15,<2
 pillow>=11,<13
 pytest>=8,<10
+truststore>=0.10,<1

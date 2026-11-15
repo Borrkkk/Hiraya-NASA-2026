@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Avatar, SkyImage, Verdict } from "@/components/ui";
-import { exploreHref } from "@/lib/explore";
+import { exploreHref } from "@/lib/explore/href";
 import { profileHref } from "@/lib/profiles";
 import { findings } from "@/lib/feed/mock";
 import { getObject } from "@/lib/sky/catalog";

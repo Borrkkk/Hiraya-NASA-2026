@@ -17,7 +17,7 @@ export class ApiError extends Error {
   }
 }
 
-function baseUrl() {
+export function baseUrl() {
   return typeof window === "undefined"
     ? (process.env.BACKEND_URL ?? "http://localhost:8000")
     : "/api";
@@ -50,4 +50,11 @@ function safeJson(text: string): unknown {
   } catch {
     return text;
   }
+}
+
+/** Like `api`, but returns the response body as a Blob (images). */
+export async function apiBlob(path: string, init: RequestInit = {}): Promise<Blob> {
+  const res = await fetch(`${baseUrl()}${path}`, init);
+  if (!res.ok) throw new ApiError(res.status, await res.text().catch(() => null));
+  return res.blob();
 }

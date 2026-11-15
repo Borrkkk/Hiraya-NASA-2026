@@ -1,11 +1,13 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Chip } from "@/components/ui";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { exploreHref } from "@/lib/explore";
+import { exploreHref } from "@/lib/explore/href";
 import { KINDS, kindLabel, searchCatalog, type ObjectKind } from "@/lib/sky/catalog";
 import { parseCoordinates } from "@/lib/sky/coordinates";
 import { formatCoords } from "@/lib/sky/format";
@@ -18,6 +20,29 @@ type Option = {
   trailing?: string;
   href: string;
 };
+
+/** A place from the backend's search: a saved SPHEREx target, or a SIMBAD name when it's online. */
+type Hit = {
+  id: string;
+  name: string;
+  ra: number;
+  dec: number;
+  kind: string;
+  blurb: string | null;
+  images: boolean;
+  source: "spherex" | "simbad";
+};
+
+function useDebounced<T>(value: T, ms: number): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return v;
+}
+
+const normName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 /**
  * Search the sky by name or by coordinates, in whatever format people type
@@ -41,6 +66,17 @@ export function SkySearch({ className }: { className?: string }) {
   const text = value.trim();
   const coords = useMemo(() => parseCoordinates(value), [value]);
 
+  // Places that really have SPHEREx data (and SIMBAD names, when the backend is online).
+  const debounced = useDebounced(text, 200);
+  const hitsQuery = useQuery({
+    queryKey: ["explore-search", debounced],
+    queryFn: ({ signal }) => api<{ results: Hit[] }>(`/explore/search?q=${encodeURIComponent(debounced)}`, { signal }),
+    enabled: !parseCoordinates(debounced),
+    staleTime: 60_000,
+    retry: 0,
+  });
+  const hits = useMemo(() => (kinds.length ? [] : (hitsQuery.data?.results ?? [])), [hitsQuery.data, kinds]);
+
   const options = useMemo<Option[]>(() => {
     const out: Option[] = [];
     if (coords) {
@@ -53,7 +89,18 @@ export function SkySearch({ className }: { className?: string }) {
       });
       return out;
     }
-    for (const o of searchCatalog(value, kinds)) {
+    for (const h of hits) {
+      out.push({
+        key: `hit-${h.id}`,
+        primary: h.name,
+        secondary: [h.kind, h.images ? "SPHEREx images ready" : h.source === "spherex" ? "Observation records only" : "From SIMBAD"].join(" · "),
+        trailing: formatCoords(h.ra, h.dec),
+        // The saved images are about a tenth of a degree wide: open with some sky around them.
+        href: exploreHref({ q: h.name, ra: h.ra, dec: h.dec, fov: 0.25 }),
+      });
+    }
+    const taken = new Set(hits.map((h) => normName(h.name)));
+    for (const o of searchCatalog(value, kinds).filter((c) => !taken.has(normName(c.name)))) {
       out.push({
         key: o.id,
         primary: o.name,
@@ -71,7 +118,7 @@ export function SkySearch({ className }: { className?: string }) {
       });
     }
     return out;
-  }, [coords, value, kinds, text]);
+  }, [coords, value, kinds, text, hits]);
 
   // The highlighted row resets to the top whenever the input or filters change
   // (see onChange and toggleKind), and is clamped here if the list shrinks.

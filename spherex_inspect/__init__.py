@@ -25,7 +25,7 @@ from .models import (
 from .retrieval import CutoutRetrieval
 from .stacking import stack_and_difference
 
-__all__ = ["inspect_point", "inspect_frames", "inspect_context", "discover_and_fetch", "measure_frames",
+__all__ = ["inspect_point", "inspect_cutouts", "inspect_frames", "inspect_context", "discover_and_fetch", "measure_frames",
            "get_discovery", "get_retrieval", "get_context"]
 
 _discovery: FrameDiscovery | None = None
@@ -130,6 +130,26 @@ async def inspect_point(req: InspectRequest) -> InspectResponse:
         ctx_task = asyncio.create_task(get_context().fetch(target, frames))
 
     cutouts = await _fetch(target, frames, warnings)
+    return await _finish_inspection(target, frames, cutouts, warnings, ctx_task)
+
+
+async def inspect_cutouts(req: InspectRequest, cutouts: list[Cutout]) -> InspectResponse:
+    """Run the same science pipeline on already retrieved frames (e.g. Explore's cache).
+
+    This entry point does not search IRSA or download images again. Catalog
+    context is optional, exactly as for inspect_point.
+    """
+    target = intake.to_target(req)
+    frames = [cutout.frame for cutout in cutouts]
+    warnings = []
+    n_failed = sum(cutout.status != "ok" for cutout in cutouts)
+    if n_failed:
+        warnings.append(f"retrieval: {n_failed} of {len(cutouts)} cutouts failed to load")
+    ctx_task = asyncio.create_task(get_context().fetch(target, frames)) if target.include_context else None
+    return await _finish_inspection(target, frames, cutouts, warnings, ctx_task)
+
+
+async def _finish_inspection(target, frames, cutouts, warnings, ctx_task) -> InspectResponse:
     measurements = await _measure(cutouts, target)
     summary = aggregate(measurements)
     # Stacking works on pixels across frames; its results ride along in the summary.
