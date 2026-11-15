@@ -147,3 +147,27 @@ Check the **JSON** of `GET /explore/jobs/{jobId}` for `status` and `result`;
 HTTP 200 alone does not mean motion was found. The frame endpoint may
 independently fail when requesting a larger cutout from the archive; a failed
 zoom-level frame is not a motion finding.
+
+
+## Exploring different sky locations
+
+The Explore page separates the location of the **loaded SPHEREx data**
+(`ra`, `dec`, `fov`) from the **current camera view**
+(`viewRa`, `viewDec`, `viewFov` in the URL).
+
+- Navigating to another known target resets the Explore controller and loads
+  that target's own area. Previously, URL coordinates were read only on first
+  mount, so client-side navigation could leave the old area loaded.
+- Panning/zooming within a loaded area does not instantly download a new
+  sky region. After panning far enough, **Load this sky area** appears in the
+  header; select it to request SPHEREx observations at the new centre.
+- Copy Link preserves camera coordinates separately from data coordinates.
+- Plain `/explore` intentionally starts at Orion, but a free-text search
+  without resolved RA/Dec is no longer offered as a target. Old links that
+  contain a name without coordinates explicitly say they display default Orion.
+- After choosing a new target, the browser Network tab should show
+  `GET /explore/area?ra=<new RA>&dec=<new Dec>`, and the heading should show
+  the new sky position. If not, the target did not change.
+
+Backend cutouts only cover a small field around their requested centre. Moving
+a view without requesting another area cannot produce new SPHEREx imagery.
