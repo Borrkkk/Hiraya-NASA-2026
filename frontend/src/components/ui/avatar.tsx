@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 
 export type FaceTone = 1 | 2 | 3 | 4;
-export type Person = { initials: string; tone: FaceTone; name: string };
+export type Person = { id: string; initials: string; tone: FaceTone; name: string };
 
 const tones: Record<FaceTone, string> = {
   1: "bg-face-1",
@@ -53,13 +54,9 @@ export function FaceStack({
     <span className={cn("inline-flex items-center gap-2", className)}>
       <span className="flex">
         {people.slice(0, max).map((p) => (
-          <Avatar
-            key={p.initials}
-            initials={p.initials}
-            tone={p.tone}
-            size="sm"
-            className="-ml-1.5 border-2 border-ground first:ml-0"
-          />
+          <Link key={p.id} href={`/profile/${encodeURIComponent(p.id)}`} aria-label={`View ${p.name}’s profile`} className="-ml-1.5 rounded-full first:ml-0">
+            <Avatar initials={p.initials} tone={p.tone} size="sm" className="border-2 border-ground" />
+          </Link>
         ))}
       </span>
       {children && <span className="text-small text-ink-secondary">{children}</span>}
