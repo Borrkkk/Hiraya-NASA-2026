@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Logo } from "@/components/ui";
 import { ExploreParams } from "./explore-params";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export const metadata: Metadata = { title: "Explore · Pulsr" };
 
@@ -15,7 +16,7 @@ export const metadata: Metadata = { title: "Explore · Pulsr" };
 export default function ExplorePage() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center gap-8 px-6 py-16">
-      <Logo size={22} />
+      <div className="flex items-center justify-between"><Logo size={22} /><ThemeToggle /></div>
       <div className="flex flex-col gap-2">
         <h1 className="text-h1 text-ink">Exploring comes next</h1>
         <p className="text-body text-ink-secondary">

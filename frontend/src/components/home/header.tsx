@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SkySearch } from "@/components/search/sky-search";
 import { Avatar, Logo } from "@/components/ui";
 import { currentUserId, getProfile, profileHref } from "@/lib/profiles";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 /**
  * Logo, search, and who you are. A solid bar on the page ground, never over
@@ -16,9 +17,10 @@ export function HomeHeader() {
         <Logo size={22} className="max-sm:[&>span:last-child]:hidden" />
       </Link>
 
-      <SkySearch className="w-full max-w-[560px] flex-1" />
+      <SkySearch className="min-w-0 w-full max-w-[560px] flex-1" />
 
       <div className="ml-auto flex items-center gap-3">
+        <ThemeToggle />
         <span className="hidden font-mono text-mono tabular-nums text-ink-secondary lg:block">
           1,240 pts
         </span>

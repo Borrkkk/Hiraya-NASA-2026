@@ -371,13 +371,13 @@ export function SkyBackdrop({ className }: { className?: string }) {
       )}
 
       {!ready && !error && (
-        <p role="status" className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 text-small text-ink-secondary">
+        <p role="status" className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-md bg-scrim px-3 py-2 text-small text-ink-secondary">
           <LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> Loading Aladin sky viewer…
         </p>
       )}
       {ready && !error && <p role="status" className="pointer-events-none absolute bottom-4 right-4 rounded-md bg-scrim px-2 py-1 text-caption text-ink-secondary">Aladin ready · DSS2 tiles stream online</p>}
       {error && (
-        <div role="alert" className="absolute left-1/2 top-1/2 w-full max-w-xs -translate-x-1/2 -translate-y-1/2 px-6 text-center text-body-sm text-ink-secondary">
+        <div role="alert" className="absolute left-1/2 top-1/2 w-full max-w-xs -translate-x-1/2 -translate-y-1/2 rounded-lg border border-line-strong bg-surface p-6 text-center text-body-sm text-ink-secondary">
           <p>Aladin couldn&apos;t load. The sky viewer needs WebGL2 and internet access. The feed still works.</p>
           <button type="button" onClick={() => setRetry((value) => value + 1)} className="mt-3 cursor-pointer rounded-md border border-line-strong bg-raised px-3 py-2 text-small text-ink hover:bg-overlay">Retry sky viewer</button>
         </div>

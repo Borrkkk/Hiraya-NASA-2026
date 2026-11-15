@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowUpRight, BadgeCheck, BookOpen, CalendarDays, Graduation
 import { Avatar, Logo } from "@/components/ui";
 import { ProfilePosts } from "@/components/profile/observation-posts";
 import { observationPosts, profiles, profileHref, type UserProfile } from "@/lib/profiles";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function ProfileScreen({ profile }: { profile: UserProfile }) {
   const posts = observationPosts.filter((post) => post.authorId === profile.id);
@@ -12,9 +13,9 @@ export function ProfileScreen({ profile }: { profile: UserProfile }) {
     <main className="mx-auto w-full max-w-[1200px] px-4 pb-16 sm:px-8">
       <header className="flex h-[88px] items-center justify-between border-b border-line">
         <Link href="/" aria-label="Pulsr home"><Logo /></Link>
-        <Link href="/" className="inline-flex items-center gap-2 text-small text-ink-secondary transition-colors hover:text-ink">
+        <div className="flex items-center gap-4"><ThemeToggle /><Link href="/" className="inline-flex items-center gap-2 text-small text-ink-secondary transition-colors hover:text-ink">
           <ArrowLeft size={16} aria-hidden="true" /> Back to the sky
-        </Link>
+        </Link></div>
       </header>
 
       <div className="flex items-center gap-2 pt-7 font-mono text-mono-sm uppercase tracking-[0.14em] text-ink-muted">

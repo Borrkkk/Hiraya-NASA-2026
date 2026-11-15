@@ -1,0 +1,32 @@
+/* Change the interface palette; astronomical image pixels stay untouched. */
+html[data-theme="light"] {
+  color-scheme: light;
+  --color-ground: #ffffff;
+  --color-surface: #ffffff;
+  --color-raised: #fff3e8;
+  --color-overlay: #ffe6d2;
+  --color-scrim: #fffffff0;
+  --color-line: #c7470d24;
+  --color-line-strong: #c7470d45;
+  --color-ink: #2b211b;
+  --color-ink-secondary: #655247;
+  --color-ink-muted: #7c6251;
+  --color-primary: #c7470d;
+  --color-primary-hover: #a83a08;
+  --color-on-primary: #ffffff;
+  --color-ember: #c7470d;
+  --color-ember-hover: #a83a08;
+  --color-on-ember: #ffffff;
+  --color-ember-wash: #fff0e4;
+  --color-ember-line: #c7470d66;
+  --color-ember-band: #c7470d24;
+  --color-explained: #23766a;
+  --color-artifact: #78685f;
+  --color-unexplained: #c7470d;
+  --color-face-1: #ffd5b5;
+  --color-face-2: #ffe3c9;
+  --color-face-3: #ffcfaa;
+  --color-face-4: #ffeccf;
+  --color-on-face: #6e2a0b;
+  --shadow-focus: 0 0 0 2px #ffffff, 0 0 0 4px #c7470d;
+}
