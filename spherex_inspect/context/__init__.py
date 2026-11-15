@@ -16,7 +16,7 @@ from .. import config
 from ..models import FieldContext, FrameRef, PointSummary, Target
 from .base import CatalogAdapter, CatalogSource, CatalogUnavailable, ConeQuery
 from .fixed import default_adapters
-from .match import decide, group_sources, sep_arcsec
+from .match import assess_candidate, decide, group_sources, sep_arcsec
 from .solar_system import SolarSystemLookup
 
 log = logging.getLogger(__name__)
@@ -107,11 +107,16 @@ class FieldContextService:
                 candidates.append(c)
             candidates.sort(key=lambda b: b.separation_arcsec)
         best, verdict, note = decide(candidates, summary)
+        candidate, n_clean, why = assess_candidate(verdict, summary)
+        if why:
+            note = why
         fixed = [status[a.name] for a in self.adapters if a.name in status]
         if fixed and all(not s.startswith("ok") for s in fixed):
             note = "all catalogs failed; verdict is not meaningful"
+            candidate = False  # cannot call anything a discovery without catalogs
         return FieldContext(best_match=best, nearby=bodies, solar_system_by_frame=solar_by_frame or {}, verdict=verdict,
-                            status_by_source=status, note=note, t_ref=t_ref)
+                            status_by_source=status, note=note, t_ref=t_ref,
+                            candidate_discovery=candidate, n_clean_detections=n_clean)
 
 
 def default_service() -> FieldContextService:

@@ -139,6 +139,8 @@ async def inspect_point(req: InspectRequest) -> InspectResponse:
     if ctx_task is not None:
         sources, status, solar = await ctx_task
         context = get_context().build(target, frames, sources, status, summary, solar_by_frame=solar)
+        if context.candidate_discovery:
+            warnings.append(f"candidate discovery: {context.note}")
         failed = [k for k, v in status.items() if not v.startswith("ok")]
         if failed:
             warnings.append(f"context: catalog(s) failed: {', '.join(failed)}")

@@ -150,6 +150,27 @@ def score_body(body: KnownBody, summary: PointSummary) -> tuple[float, dict[str,
     return sum(w[k] * v for k, v in terms.items()) / total_w, terms
 
 
+def brightness_veto(body: KnownBody, summary: PointSummary) -> str | None:
+    """Return a reason when the body is far too faint (same-λ comparison) to be the measured
+    source; None otherwise. Saturated (flagged) samples count as lower bounds."""
+    samples = [(s.wavelength_um, s.flux) for s in summary.spectrum if s.flux > 0]
+    samples += [(s.wavelength_um, s.flux) for s in summary.spectrum_flagged
+                if s.flux > 0 and set(s.flags) & config.FLAGS_SATURATION]
+    if not samples:
+        return None
+    for band, (lam0, zp) in config.VETO_BANDS.items():
+        if band not in body.mags:
+            continue
+        near = [f for lam, f in samples if abs(lam - lam0) <= config.MATCH_IR_WINDOW_UM]
+        if not near:
+            continue
+        cat = zp * 10 ** (-0.4 * body.mags[band])
+        meas = median(near)
+        if meas / cat > config.MATCH_BRIGHTNESS_VETO_RATIO:
+            return f"{band}={body.mags[band]:.1f} gives {cat:.2g} Jy, SPHEREx measured ≥ {meas:.2g} Jy"
+    return None
+
+
 def decide(bodies: list[KnownBody], summary: PointSummary | None):
     """→ (best_match | None, verdict, note). Bodies must already be propagated to the
     latest position's time and carry separations from the measured source."""
@@ -157,10 +178,13 @@ def decide(bodies: list[KnownBody], summary: PointSummary | None):
         return None, "no_known_match", "no measured source to identify (nothing detected, or a context-only lookup)"
     if not bodies:
         return None, "no_known_match", "no catalog source near the measured position: candidate discovery"
-    scored = sorted(((score_body(b, summary)[0], b) for b in bodies), key=lambda x: -x[0])
+    scored = sorted(((0.0 if brightness_veto(b, summary) else score_body(b, summary)[0], b) for b in bodies),
+                    key=lambda x: -x[0])
     top, best = scored[0]
     runner = scored[1][0] if len(scored) > 1 else 0.0
-    close = [b for b in bodies if b.separation_arcsec <= config.MATCH_AMBIGUOUS_RADIUS_ARCSEC]
+    # Bodies vetoed on brightness cannot blend with the source either.
+    close = [b for b in bodies if b.separation_arcsec <= config.MATCH_AMBIGUOUS_RADIUS_ARCSEC
+             and not brightness_veto(b, summary)]
     if top >= config.MATCH_MIN_SCORE and top - runner >= config.MATCH_MIN_MARGIN:
         return BestMatch(**best.model_dump(), match_score=round(top, 4)), "matched", None
     if len(close) >= 2:
@@ -168,3 +192,21 @@ def decide(bodies: list[KnownBody], summary: PointSummary | None):
                 f"{len(close)} known bodies within {config.MATCH_AMBIGUOUS_RADIUS_ARCSEC:g}\" (one SPHEREx PSF)")
     return None, "no_known_match", (f"best candidate {best.name} scored {top:.2f}; "
                                     "no catalog source explains the measured source: candidate discovery")
+
+
+def assess_candidate(verdict: str, summary: PointSummary | None) -> tuple[bool, int | None, str | None]:
+    """→ (candidate_discovery, n_clean_detections, note suffix). Only for no_known_match with a
+    measured source; 'clean' = position-usable detection without artifact flags."""
+    if verdict != "no_known_match" or summary is None or summary.latest_position is None:
+        return False, None, None
+    clean = [p for p in summary.positions
+             if p.used_in_fit and not (set(p.flags) & config.CANDIDATE_BLOCKING_FLAGS)]
+    n = len(clean)
+    if n >= config.CANDIDATE_MIN_CLEAN_DETECTIONS:
+        moving = summary.proper_motion is not None
+        kind = "moving" if moving else "stationary"
+        return True, n, f"{kind} source in {n} artifact-free frames with no known counterpart: candidate discovery"
+    if n == 1:
+        return False, n, ("seen in only 1 artifact-free frame: an artifact (cosmic ray, ghost) or an "
+                          "untracked mover is more likely than a new object")
+    return False, n, "no artifact-free detection: likely an artifact, not a discovery"

@@ -210,3 +210,71 @@ def test_step6_asteroid_in_frame():
     assert vesta[0].mags["V"] < 17
     # The detection in that frame IS Vesta: it must be matched, not called a discovery.
     assert ctx.verdict == "matched" and "Vesta" in ctx.best_match.name, ctx.note
+
+
+# --------------------------------------------------------------------------- #
+# Step 7 — variability, candidate discovery, blank field
+# --------------------------------------------------------------------------- #
+
+RW_AUR = (76.95652603458333, 30.401438173888888)  # SIMBAD, pm ~20 mas/yr (negligible here)
+R_DRA = (248.16761083295, 66.75497941722)
+BLANK = (269.4520769586187, 4.693364966576667)  # Barnard's J2000 spot: the star left it long ago
+
+
+def _run(ra, dec, **kw):
+    import spherex_inspect
+
+    t0 = time.monotonic()
+    resp = asyncio.run(spherex_inspect.inspect_point(InspectRequest(ra=ra, dec=dec, **kw)))
+    print(f"\n{time.monotonic() - t0:.1f}s")
+    for v in resp.summary.variability:
+        print(f"  D{v.detector} n={v.n:3d} basis={v.basis} rchi2={v.reduced_chi2} amp={v.amplitude} "
+              f"variable={v.variable} {v.note or ''}")
+    c = resp.context
+    print(f"  verdict={c.verdict} best={c.best_match.name if c.best_match else None} "
+          f"class={c.best_match.object_class if c.best_match else None} candidate={c.candidate_discovery} note={c.note}")
+    return resp
+
+
+@pytest.fixture(scope="session")
+def rw_aur_run():
+    return _run(*RW_AUR, max_frames=120)
+
+
+@pytest.fixture(scope="session")
+def r_dra_run():
+    return _run(*R_DRA, max_frames=120)
+
+
+def test_step7_rw_aur_flagged_variable(rw_aur_run):
+    flagged = [v for v in rw_aur_run.summary.variability if v.variable]
+    assert len(flagged) >= 2, "RW Aur should be variable in at least two detectors"
+    assert any(v.basis == "saturated" for v in flagged)  # RW Aur saturates most SPHEREx frames
+    assert max(v.amplitude for v in flagged) > 1.5
+    # RW Aur is a 1.4″ binary (A+B): "ambiguous" is the honest verdict; the top body is variable.
+    assert rw_aur_run.context.best_match and rw_aur_run.context.best_match.object_class == "variable_star"
+
+
+def test_step7_r_dra_reported_not_measurable(r_dra_run):
+    """R Dra (Mira) saturates with NaN cores in every frame: aperture photometry cannot measure
+    it. The summary must say so rather than claim 'constant'."""
+    vs = r_dra_run.summary.variability
+    assert vs and not any(v.variable for v in vs)
+    assert all(v.reduced_chi2 is None for v in vs)
+    assert any(v.note and "masked (NaN) saturated core" in v.note for v in vs)
+    assert r_dra_run.context.verdict == "matched" and r_dra_run.context.best_match.object_class == "variable_star"
+
+
+def test_step7_barnard_not_variable(barnard_run):
+    """Control: Barnard's Star is constant (and saturated); no detector may be flagged."""
+    vs = barnard_run.summary.variability
+    print("\n" + "\n".join(f"  D{v.detector} n={v.n} basis={v.basis} rchi2={v.reduced_chi2} {v.note or ''}" for v in vs))
+    assert not any(v.variable for v in vs)
+
+
+def test_step7_blank_field():
+    resp = _run(*BLANK, max_frames=60)
+    c = resp.context
+    nothing = resp.summary.latest_position is None
+    assert nothing or c.verdict == "no_known_match", f"blank field gave {c.verdict} ({c.note})"
+    assert not c.candidate_discovery or c.n_clean_detections >= 2

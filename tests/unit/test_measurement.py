@@ -229,3 +229,53 @@ def test_blank_field_fixture_not_detected():
     _, cut, t = _fixture("blank_badpix_d1")
     m = measure(cut, t)
     assert not m.detected and abs(m.flux_jy) < 0.01
+
+
+def test_neighbour_in_box_corner_is_not_the_source():
+    """2.5 px away diagonally: inside the 5×5 box, outside the 2 px detection radius."""
+    m = measure(synthetic(stars=[(C + 1.8, C + 1.8, 50.0)]), target())
+    assert not m.detected and m.ra_meas is None
+
+
+def test_masked_core_gets_larger_position_floor():
+    fl = np.zeros((N, N), np.int64)
+    fl[14, 14] = 1 << 3  # OVERFLOW
+    cut = synthetic(stars=[(C, C, 100.0)], flags=fl, nan_at=(14, 14))
+    m = measure(cut, target())
+    assert m.detected and "MASKED_PIXELS" in m.flag_names and m.pos_err_arcsec == pytest.approx(3.0)
+
+
+def _saturated_star(total=400.0, core_r=1.1, x0=C + 0.3, y0=C - 0.2):
+    """Bright star whose core (r ≤ core_r px) is saturated: NaN + OVERFLOW/BLOOM flags."""
+    fl = np.zeros((N, N), np.int64)
+    yy, xx = np.mgrid[0:N, 0:N]
+    core = np.hypot(xx - x0, yy - y0) <= core_r
+    fl[core] = (1 << 3)  # OVERFLOW (name mapped in BITS)
+    cut = synthetic(stars=[(x0, y0, total)], flags=fl)
+    cut.image[core] = np.nan
+    return cut, total, x0, y0
+
+
+def test_wing_fit_recovers_flux_of_masked_core():
+    cut, total, x0, y0 = _saturated_star()
+    m = measure(cut, target())
+    assert m.detected and m.flux_method == "psf_wings" and not m.usable
+    expected = total * OMEGA_SR * 1e6
+    assert m.flux_jy == pytest.approx(expected, rel=0.05)  # the aperture alone loses the core
+    x, y = WCS(cut.header).world_to_pixel_values(m.ra_meas, m.dec_meas)
+    assert abs(x - x0) < 0.1 and abs(y - y0) < 0.1  # position from the ePSF fit
+    assert m.psf_fit_rchi2 is not None
+
+
+def test_wing_fit_gives_up_without_wings():
+    # saturated region larger than the ePSF stamp (R Dra-like): the wing fit must give up
+    cut, total, *_ = _saturated_star(core_r=4.5)
+    m = measure(cut, target())
+    assert m.flux_method != "psf_wings" and m.psf_fit_rchi2 is None and not m.usable
+
+
+def test_saturated_without_masked_core_keeps_aperture():
+    fl = np.zeros((N, N), np.int64)
+    fl[14, 14] = 1 << 3  # OVERFLOW, but the pixel value is fine
+    m = measure(synthetic(stars=[(C, C, 100.0)], flags=fl), target())
+    assert m.flux_method == "aperture"

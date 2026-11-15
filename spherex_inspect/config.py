@@ -38,6 +38,7 @@ RETRY_STATUS = {429, 500, 502, 503, 504}
 BG_ANNULUS_PX = (4.0, 6.0)
 BG_MIN_PIXELS = 8
 CENTROID_BOX_PX = 5
+DETECT_MAX_OFFSET_PX = 2.0  # centroid must lie within this radius of the target pixel
 DETECT_SNR = 5.0
 APERTURE_RADIUS_PX = 2.0
 POS_ERR_FLOOR_ARCSEC = 0.3
@@ -45,6 +46,15 @@ POS_ERR_FLOOR_ARCSEC = 0.3
 # Gaia), so a larger floor applies when saturation flags are in the aperture.
 SATURATED_POS_ERR_FLOOR_ARCSEC = 1.5
 FLAGS_SATURATION = frozenset({"OVERFLOW", "BLOOM", "NONLINEAR"})
+MASKED_CORE_POS_ERR_FLOOR_ARCSEC = 3.0  # saturated AND NaN-masked core
+# ePSF wing fit for saturated stars: pixels with these flags are left out of the fit.
+FLAGS_WING_EXCLUDE = frozenset({
+    "OVERFLOW", "NONLINEAR", "BLOOM", "TRANSIENT", "SUR_ERROR", "NONFUNC", "MISSING_DATA", "HOT", "COLD",
+    "PERSIST", "GHOST", "GHOST_FPA", "GHOST_EXT", "STREAK", "HALO", "SNOWBALL", "OUTLIER",
+})
+WING_FIT_RADIUS_PX = 4.0  # the ePSF stamp spans ±3.3 native px
+WING_FIT_MIN_PIXELS = 8
+WING_FIT_MAX_SHIFT_PX = 1.0
 PIXEL_SCALE_TOLERANCE = 0.02  # SIA s_pixel_scale vs WCS must agree within 2%
 # Flag classes, by NAME (bit numbers are read from the FLAGS header at runtime).
 FLAGS_UNUSABLE = frozenset({
@@ -104,3 +114,31 @@ SB_IDENT_TIMEOUT_S = 150.0  # a two-pass call took 91 s live
 SB_IDENT_MAX_CALLS = 2  # per request, only when SkyBoT fails (each call ~1.5 min)
 SOLAR_CONCURRENCY = 4
 SOLAR_MAX_V = 22.0  # fainter bodies cannot show up in a single SPHEREx exposure
+
+# Candidate discovery (build step 7): an unexplained source counts as a candidate only when it
+# is detected in enough frames free of artifact flags (brief: gate on FLAGS before calling
+# something a discovery).
+CANDIDATE_MIN_CLEAN_DETECTIONS = 2
+CANDIDATE_BLOCKING_FLAGS = frozenset({
+    "TRANSIENT", "OUTLIER", "PERSIST", "GHOST", "GHOST_FPA", "GHOST_EXT", "STREAK", "HALO", "SNOWBALL",
+    "MASKED_PIXELS", "SUR_ERROR",
+})
+
+# Variability (brief §7, adapted: each frame samples a different λ even within one detector,
+# so the "constant" model is a smooth spectrum in λ per detector, not a single flux).
+VAR_MIN_SAMPLES = 5
+VAR_CHI2_THRESHOLD = 5.0
+VAR_FLUX_ERR_FLOOR = 0.03  # fractional, added in quadrature (calibration systematics)
+VAR_POLY_DEGREE = 2  # spectral model degree in λ (lowered when few samples)
+# Fallback when a source is saturated (no flux-usable samples): use detected samples whose only
+# problem is saturation (no NaN-masked core, no ghost/persistence/streak), with a larger floor.
+# Live: constant Barnard's Star → reduced χ² 0.1–0.2, T Tauri star RW Aur → 5–12 at this floor.
+VAR_SATURATED_ERR_FLOOR = 0.10
+
+# Brightness plausibility veto in matching: a candidate whose catalog flux, at a wavelength
+# close to a SPHEREx sample, is this many times fainter than what SPHEREx measured cannot be the
+# source (e.g. a G = 19 star cannot saturate SPHEREx). Same-λ only, so very red objects (brown
+# dwarfs: faint in Gaia, bright at 4.5 µm) are never vetoed by optical photometry.
+MATCH_BRIGHTNESS_VETO_RATIO = 100.0
+# Approximate zero points (Jy) for the veto only (a factor 1.5 does not matter at 100×).
+VETO_BANDS = {"RP": (0.78, 3631.0), "G": (0.64, 3631.0), "Ks": (2.16, 666.7), "W1": (3.4, 309.54), "W2": (4.6, 171.79)}

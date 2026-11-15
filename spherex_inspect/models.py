@@ -121,6 +121,10 @@ class FrameMeasurement(BaseModel):
     # Proposed (NOTES.md): position usable even when the flux is not (e.g. a saturated star).
     position_usable: bool = False
     aperture_correction: float | None = None  # fraction of ePSF flux inside the aperture
+    # Proposed: "aperture" | "forced" (no detection, at the target) | "psf_wings" (ePSF fit to
+    # the unsaturated wings of a saturated / masked-core star).
+    flux_method: str | None = None
+    psf_fit_rchi2: float | None = None
     note: str | None = None  # why nothing could be measured, when that happens
 
 
@@ -149,6 +153,7 @@ class PositionSample(BaseModel):
     frame_id: str | None = None
     detector: int | None = None
     used_in_fit: bool = True  # False when rejected as an outlier by the pm fit
+    flags: list[str] = Field(default_factory=list)  # aperture flags of that detection
 
 
 class ProperMotion(BaseModel):
@@ -180,8 +185,12 @@ class BandVariability(BaseModel):
     detector: int
     n: int
     reduced_chi2: float | None = None
-    amplitude: float | None = None
+    amplitude: float | None = None  # max/min of flux relative to the smooth spectral model
     variable: bool = False
+    # Proposed: which photometry the metric used — "usable" (clean) or "saturated" (fallback,
+    # larger error floor) — and why nothing could be measured, when that happens.
+    basis: Literal["usable", "saturated"] | None = None
+    note: str | None = None
 
 
 class QualitySummary(BaseModel):
@@ -244,6 +253,9 @@ class FieldContext(BaseModel):
     verdict: Literal["matched", "ambiguous", "no_known_match"] = "no_known_match"
     status_by_source: dict[str, str] = Field(default_factory=dict)
     note: str | None = None  # why the verdict is what it is (proposed addition)
+    # True when no known body explains a source seen in >= 2 artifact-free frames (proposed).
+    candidate_discovery: bool = False
+    n_clean_detections: int | None = None
     t_ref: float | None = None  # MJD the catalog positions were propagated to (proposed addition)
 
 

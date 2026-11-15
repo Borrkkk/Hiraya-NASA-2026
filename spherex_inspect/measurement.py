@@ -153,6 +153,62 @@ def epsf_aperture_fraction(epsf, det_x: float, det_y: float, radius_px: float, o
     return frac if 0.05 < frac <= 1.0 else None
 
 
+def _epsf_native(epsf, det_x: float, det_y: float, oversample: int = 5) -> np.ndarray | None:
+    """Nearest ePSF row, normalised so that sampling it at native-pixel spacing sums to ~1."""
+    if epsf is None or len(epsf) == 0:
+        return None
+    i = int(np.argmin((epsf["XCENTER"] - det_x) ** 2 + (epsf["YCENTER"] - det_y) ** 2))
+    psf = np.nan_to_num(np.asarray(epsf["EPSF"][i], dtype=float))
+    tot = psf.sum()
+    return psf / tot * oversample**2 if tot > 0 else None
+
+
+def psf_wing_fit(sub: np.ndarray, var: np.ndarray, exclude: np.ndarray, psf: np.ndarray,
+                 cx: float, cy: float, oversample: int = 5):
+    """Fit amplitude + position of the ePSF to the pixels a saturated star leaves usable
+    (its wings): everything flagged as saturated/bad is excluded. The amplitude is the total
+    flux (image units summed over pixels), so no aperture correction is needed.
+
+    → dict(flux, flux_err, x, y, n_pix, rchi2) or None when the fit is not trustworthy."""
+    from scipy.ndimage import map_coordinates
+    from scipy.optimize import least_squares
+
+    ny, nx = sub.shape
+    yy, xx = np.mgrid[0:ny, 0:nx]
+    r = np.hypot(xx - cx, yy - cy)
+    sel = (r <= config.WING_FIT_RADIUS_PX) & ~exclude & np.isfinite(sub) & np.isfinite(var) & (var > 0)
+    if sel.sum() < config.WING_FIT_MIN_PIXELS:
+        return None
+    xs, ys = xx[sel].astype(float), yy[sel].astype(float)
+    d, e = sub[sel], np.sqrt(var[sel])
+    c0 = (psf.shape[0] - 1) / 2
+
+    def model(x0, y0):
+        return map_coordinates(psf, [c0 + oversample * (ys - y0), c0 + oversample * (xs - x0)],
+                               order=3, mode="constant", cval=0.0)
+
+    m0 = model(cx, cy)
+    if m0.sum() <= 0:
+        return None
+    a0 = max(float(np.sum(d * m0) / np.sum(m0 * m0)), 1e-6)
+    try:
+        fit = least_squares(lambda p: (p[2] * model(p[0], p[1]) - d) / e, [cx, cy, a0],
+                            x_scale=[0.3, 0.3, a0])
+    except Exception:
+        return None
+    x0, y0, amp = (float(v) for v in fit.x)
+    if amp <= 0 or math.hypot(x0 - cx, y0 - cy) > config.WING_FIT_MAX_SHIFT_PX:
+        return None
+    dof = max(len(d) - 3, 1)
+    rchi2 = float(np.sum(fit.fun**2) / dof)
+    try:
+        cov = np.linalg.pinv(fit.jac.T @ fit.jac)
+        amp_err = math.sqrt(max(cov[2, 2], 0.0) * max(rchi2, 1.0))
+    except Exception:
+        return None
+    return {"flux": amp, "flux_err": amp_err, "x": x0, "y": y0, "n_pix": int(sel.sum()), "rchi2": rchi2}
+
+
 # --------------------------------------------------------------------------- #
 # Entry point
 # --------------------------------------------------------------------------- #
@@ -206,7 +262,12 @@ def measure(cutout: Cutout, target: Target) -> FrameMeasurement:
             detected = False
     if detected:
         cx, cy, method = centroid(sub, err, bad, px + sx.start, py + sy.start)
-    else:
+        # Only a source within a 2 px RADIUS of the target is "the" source. The square box lets
+        # a neighbour in a corner (up to 2.8 px ≈ 17″) through; mixing it with forced photometry
+        # at the target made a blank field look wildly variable.
+        if math.hypot(cx - tx, cy - ty) > config.DETECT_MAX_OFFSET_PX:
+            detected = False
+    if not detected:
         cx, cy, method = tx, ty, "forced"
 
     # Photometry: 2 px aperture at the centroid (or forced at the target pixel).
@@ -240,12 +301,31 @@ def measure(cutout: Cutout, target: Target) -> FrameMeasurement:
     if n_bad_ap:
         names = sorted(set(names) | {"MASKED_PIXELS"})
 
+    # Masked (NaN) saturated core: the aperture misses the core, so fit the ePSF to the wings.
+    # Not used for saturated-but-unmasked stars: there the aperture flux scatters less (live:
+    # Barnard's wing fits scattered 17–50% vs aperture χ² 0.1–0.3 at a 10% floor).
+    flux_method = "aperture" if detected else "forced"
+    wing = None
+    if detected and n_bad_ap:
+        psf = _epsf_native(cutout.epsf, det_x, det_y)
+        if psf is not None:
+            exclude = bad | _mask_for(flags, bit_names, config.FLAGS_WING_EXCLUDE)
+            wing = psf_wing_fit(sub, var, exclude, psf, cx, cy)
+        if wing is not None:
+            flux_method = "psf_wings"
+            flux_jy = wing["flux"] * omega_sr * 1e6
+            flux_err_jy = wing["flux_err"] * omega_sr * 1e6
+            snr = flux_jy / flux_err_jy if flux_err_jy else None
+            cx, cy = wing["x"], wing["y"]  # the centroid came from the wings anyway
+
     # Position.
     ra_m, dec_m = (float(v) for v in wcs.pixel_to_world_values(cx, cy))
     offset = _sep_arcsec(target.coord.ra, target.coord.dec, ra_m, dec_m)
     fwhm = float(hdr.get("PSF_FWHM", 2.35 * (f.pixel_scale_arcsec or 6.2)))
     saturated = any(n in config.FLAGS_SATURATION for n in names)
     floor = config.SATURATED_POS_ERR_FLOOR_ARCSEC if saturated else config.POS_ERR_FLOOR_ARCSEC
+    if saturated and "MASKED_PIXELS" in names:  # centroid from the wings only (R Dra: ~4″ off)
+        floor = config.MASKED_CORE_POS_ERR_FLOOR_ARCSEC
     pos_err = max(fwhm / (2.35 * snr), floor) if snr and snr > 0 else None
 
     # Wavelength at the centroid.
@@ -277,6 +357,8 @@ def measure(cutout: Cutout, target: Target) -> FrameMeasurement:
         usable=usable,
         position_usable=position_usable,
         aperture_correction=apcorr,
+        flux_method=flux_method,
+        psf_fit_rchi2=wing["rchi2"] if wing else None,
         note=note,
     )
 

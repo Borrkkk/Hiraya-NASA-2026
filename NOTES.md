@@ -304,3 +304,70 @@ frames). **SkyBoT answered in 2.2 s.** So:
 
 ### Timing
 - Full live suite: ~28 s with cold SkyBoT/Horizons lookups, **~6 s warm**. Offline: ~2.4 s.
+
+## Step 7 — Variability, candidate discovery, blank field (verified 2026-11-14)
+
+### Done check (live)
+| target | result |
+|---|---|
+| RW Aur (T Tauri) | **variable** in D1 (clean), D2, D5, D6 (saturated basis), amplitude ×1.6–2.7. Context `ambiguous`, top body RW Aur B — RW Aur is a 1.4″ binary, so that is correct |
+| R Dra (Mira) | **not measurable**: NaN-masked saturated core in every frame (all 6 detectors say so). Context `matched` → V* R Dra (`variable_star`) |
+| Barnard's Star (control) | not variable (reduced χ² 0.09, 0.31 on saturated D5/D6) |
+| Blank field (Barnard's J2000 spot) | nothing detected; forced photometry reduced χ² 0.2–2.5, nothing flagged |
+
+So the brief's "R Dra flagged variable" is **not met**, honestly: SPHEREx saturates at roughly
+0.1–0.2 Jy, both brief targets are far brighter, and R Dra's cores are NaN. Measuring it needs the
+ePSF fit to the unsaturated wings (the plan's "add the ePSF fit later").
+
+### Plan / brief corrections (please review)
+- **Variability model is a smooth spectrum per detector, not a constant.** Every frame samples a
+  different λ even within one detector (D1 spans 0.75–1.1 µm), so the brief's constant model
+  flags any star with a sloped spectrum (unit test shows it). Per detector: weighted polynomial
+  in λ (degree ≤ 2, ≥ 3 dof), reduced χ² of the residuals with a 3% fractional floor; brief's
+  threshold kept (≥ 5 with ≥ 5 samples). Amplitude = max/min of flux / model (only when the
+  model is clearly > 0).
+- **Saturated fallback** (`BandVariability.basis = "saturated"`): when a detector has < 5 clean
+  samples, detected samples whose only problem is saturation (no masked core, no
+  ghost/persistence/streak) are used with a 10% floor. Live margin: constant Barnard 0.1–0.2,
+  RW Aur 5–12. Otherwise `note` says why nothing was measured.
+- **Candidate discovery is flag-gated** (`FieldContext.candidate_discovery`, `n_clean_detections`):
+  only `no_known_match` with ≥ 2 position-usable detections free of TRANSIENT, OUTLIER,
+  PERSIST, GHOST*, STREAK, HALO, SNOWBALL, SUR_ERROR, MASKED_PIXELS. One clean frame → "an
+  artifact or untracked mover is more likely". A warning is added when it fires. Never fires
+  when all catalogs failed. (`PositionSample.flags` added to carry the aperture flags.)
+- **Detection radius**: a detection must lie within 2 px of the target (the 5×5 box let a
+  neighbour 2.8 px ≈ 17″ away through). The blank field's 19″ neighbour, mixed with forced
+  photometry, had produced fake variability with amplitudes ×15–92.
+- **Brightness plausibility veto in matching**: a candidate whose catalog flux, at a wavelength
+  within 0.3 µm of a SPHEREx sample, is > 100× fainter than SPHEREx measured (saturated samples
+  as lower bounds) is ruled out and does not count toward "ambiguous". Without it, R Dra's
+  centroid (4″ off, wings only) matched a G = 19.4 Gaia star at 0.1″. Same-λ only: Gaia mags
+  never veto a red object measured at 4.5 µm.
+- Position-error floor 3″ for saturated detections with a masked core (R Dra's centroid was 4″
+  off). Barnard's pm is now 14.6σ (was 20.8σ), |pm| 10060 ± 688 vs Gaia 10393.
+
+### Reliability
+- Horizons returned 502 once; the solar-system lookup fell back to geocentric SkyBoT positions
+  and said so in `status_by_source`.
+- Full live suite: 9 passed, 1 skipped (cold timing, opt-in), 18 s warm. Offline: 137 in 2.3 s.
+
+### ePSF wing fit for masked-core saturated stars (added after step 7 review)
+- When a detection has NaN-masked pixels in its aperture (a saturated core), measurement fits the
+  SPHEREx ePSF (amplitude + position) to the pixels within 4 px that carry none of
+  `FLAGS_WING_EXCLUDE` (saturation, bloom, transient, bad pixels, artifacts).
+  The amplitude is the total flux, so no aperture correction is needed. Errors are scaled by
+  √(reduced χ²). The position comes from the same fit. `FrameMeasurement.flux_method` =
+  `aperture` | `forced` | `psf_wings`, plus `psf_fit_rchi2` (proposed fields).
+- Only for masked cores. On saturated-but-unmasked frames the wing fit scattered more than the
+  aperture (Barnard's: 17–50% vs aperture χ² 0.1–0.3), because the SPHEREx ePSF does not match
+  bright wings well (reduced χ² of the fit ~50–800).
+- Variability's saturated fallback now accepts masked-core samples whose flux came from the wing
+  fit. Live at the 10% floor: Barnard's (constant) D1 0.5, D5 0.1, D6 1.9 → none flagged;
+  RW Aur still flagged (D1 clean, D5 8.6, D6 12.1).
+- Barnard's fixtures: aperture 4.24 / 2.54 Jy → wing fit 4.14 / 4.06 Jy at 0.75 µm (D1, a year
+  apart), 3.92 Jy at 4.87 µm (≈ WISE W2 4.3 Jy).
+- **R Dra stays unmeasurable — a data limit, not a bug.** Its flagged saturation region reaches
+  ~6 px, but the SPHEREx ePSF stamp is only ±3.3 native px, so **zero usable pixels fall inside
+  the model** (median 0 within 4 px over 98 frames). Measuring it needs an extended PSF-wing
+  model, which IRSA does not provide. The variability note now says "masked (NaN) saturated
+  core and the ePSF wing fit failed".

@@ -312,10 +312,35 @@ def test_asteroid_in_latest_frame_explains_detection():
     star.ra, star.dec = ra + 0.01, dec
     svc = FieldContextService([])
     no_solar = svc.build(tgt, [], [star], {}, s)
-    assert no_solar.verdict == "no_known_match" and "candidate discovery" in no_solar.note
+    # unexplained, but seen in only one frame → flagged as a likely artifact, not a discovery
+    assert no_solar.verdict == "no_known_match" and not no_solar.candidate_discovery
+    assert "only 1 artifact-free frame" in no_solar.note
     ctx = svc.build(tgt, [], [star], {}, s, solar_by_frame={"F1D3": [vesta], "F1D6": [vesta]})
     assert ctx.verdict == "matched" and ctx.best_match.name == "4 Vesta" and ctx.best_match.is_solar_system
     assert all(not b.is_solar_system for b in ctx.nearby)  # nearby stays the fixed-sky list
     # an asteroid in some OTHER frame does not explain the latest detection
     other = svc.build(tgt, [], [star], {}, s, solar_by_frame={"F9D1": [vesta]})
     assert other.verdict == "no_known_match"
+
+
+def test_brightness_veto_same_wavelength_only():
+    from spherex_inspect.context.match import brightness_veto
+    from spherex_inspect.models import KnownBody, SpectrumSample
+
+    ra, dec = 248.1676, 66.755
+    lp = PositionSample(t_mid=61000, ra=ra, dec=dec, err=3.0, frame_id="F")
+    sat = [SpectrumSample(wavelength_um=0.8, flux=6.0, err=0.02, frame_id="a", flags=["OVERFLOW", "MASKED_PIXELS"])]
+    s = PointSummary(latest_position=lp, first_position=lp, positions=[lp], spectrum_flagged=sat,
+                     quality=QualitySummary(n_frames=1, n_usable=0))
+    faint = KnownBody(name="faint", ra_at_t=ra, dec_at_t=dec, t_ref=61000, separation_arcsec=0.1, mags={"G": 19.4})
+    mira = KnownBody(name="V* R Dra", object_class="variable_star", ra_at_t=ra, dec_at_t=dec + 4.1 / 3600,
+                     t_ref=61000, separation_arcsec=4.1, mags={"G": 6.4, "RP": 6.2})
+    assert brightness_veto(faint, s) and not brightness_veto(mira, s)
+    best, verdict, _ = decide([faint, mira], s)
+    assert verdict == "matched" and best.name == "V* R Dra"
+    # A very red object (faint in Gaia) measured only at 4.5 µm is never vetoed by Gaia mags.
+    red = PointSummary(latest_position=lp, first_position=lp, positions=[lp],
+                       spectrum=[SpectrumSample(wavelength_um=4.5, flux=0.002, err=1e-4, frame_id="b")],
+                       quality=QualitySummary(n_frames=1, n_usable=1))
+    bd = KnownBody(name="BD", ra_at_t=ra, dec_at_t=dec, t_ref=61000, separation_arcsec=0.5, mags={"G": 21.0})
+    assert brightness_veto(bd, red) is None

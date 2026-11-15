@@ -12,6 +12,7 @@ import numpy as np
 
 from . import config
 from .models import (
+    BandVariability,
     BinnedSpectrumSample,
     FrameMeasurement,
     LightCurveSample,
@@ -166,6 +167,87 @@ def pm_report_decision(pm: ProperMotion | None) -> str | None:
 
 
 # --------------------------------------------------------------------------- #
+# Variability
+# --------------------------------------------------------------------------- #
+
+
+def detector_variability(det: int, samples: list[LightCurveSample], floor: float | None = None,
+                         basis: str = "usable") -> BandVariability:
+    """Within one detector: fit a smooth spectrum (polynomial in λ) to all epochs, then the
+    reduced χ² of the residuals measures variability in time. A constant-flux model would
+    flag any star whose spectrum slopes across the detector band."""
+    floor = config.VAR_FLUX_ERR_FLOOR if floor is None else floor
+    pts = [s for s in samples if s.wavelength_um is not None and s.err and s.err > 0]
+    n = len(pts)
+    if n < config.VAR_MIN_SAMPLES:
+        return BandVariability(detector=det, n=n)
+    lam = np.array([s.wavelength_um for s in pts])
+    f = np.array([s.flux for s in pts])
+    e = np.array([s.err for s in pts])
+    deg = min(config.VAR_POLY_DEGREE, max(n - 4, 0))  # keep ≥ 3 degrees of freedom
+    x = lam - lam.mean()
+    model = np.full(n, float(np.average(f, weights=1 / e**2)))
+    for _ in range(2):  # refit once with the floor based on the model flux
+        sig = np.sqrt(e**2 + (floor * np.abs(model)) ** 2)
+        coef = np.polyfit(x, f, deg, w=1 / sig) if deg > 0 else [np.average(f, weights=1 / sig**2)]
+        model = np.polyval(coef, x)
+    sig = np.sqrt(e**2 + (floor * np.abs(model)) ** 2)
+    rchi2 = float(np.sum(((f - model) / sig) ** 2) / (n - deg - 1))
+    # Amplitude only means something when the source is clearly above zero everywhere.
+    amp = None
+    if np.all(model > 3 * e):
+        ratio = f / model
+        ratio = ratio[np.isfinite(ratio) & (ratio > 0)]
+        amp = float(np.max(ratio) / np.min(ratio)) if len(ratio) >= 2 else None
+    return BandVariability(detector=det, n=n, reduced_chi2=rchi2, amplitude=amp,
+                           variable=bool(rchi2 >= config.VAR_CHI2_THRESHOLD), basis=basis)
+
+
+def _saturated_only(m: FrameMeasurement) -> bool:
+    """Detected, flux rejected only because of saturation, and none of the flags that also
+    spoil the position (ghosts, persistence, streaks...). A masked (NaN) core is acceptable
+    only when the flux came from the ePSF wing fit, not from the (truncated) aperture."""
+    names = set(m.flag_names)
+    masked_ok = "MASKED_PIXELS" not in names or m.flux_method == "psf_wings"
+    return (m.detected and not m.usable and m.flux_jy is not None and m.flux_jy > 0 and bool(m.flux_err_jy)
+            and bool(names & config.FLAGS_SATURATION) and masked_ok
+            and not (names & config.FLAGS_POSITION_UNUSABLE))
+
+
+def variability(ms: list[FrameMeasurement], light_curve: list[LightCurveSample]) -> list[BandVariability]:
+    """Per detector: clean (usable) photometry when there are enough samples, else saturated
+    photometry with a larger error floor; otherwise say why nothing could be measured."""
+    usable: dict[int, list[LightCurveSample]] = {}
+    for s in light_curve:
+        usable.setdefault(s.detector, []).append(s)
+    saturated: dict[int, list[LightCurveSample]] = {}
+    masked: dict[int, int] = {}
+    for m in ms:
+        if _saturated_only(m):
+            saturated.setdefault(m.detector, []).append(LightCurveSample(
+                t_mid=m.t_mid, detector=m.detector, wavelength_um=m.wavelength_um, flux=m.flux_jy,
+                err=m.flux_err_jy, frame_id=m.frame_id))
+        elif m.detected and "MASKED_PIXELS" in m.flag_names and m.flux_method != "psf_wings":
+            masked[m.detector] = masked.get(m.detector, 0) + 1
+    detected = {m.detector for m in ms if m.detected}
+    out = []
+    for d in sorted(set(usable) | set(saturated) | set(masked) | detected):
+        if len(usable.get(d, [])) >= config.VAR_MIN_SAMPLES:
+            out.append(detector_variability(d, usable[d]))
+        elif len(saturated.get(d, [])) >= config.VAR_MIN_SAMPLES:
+            out.append(detector_variability(d, saturated[d], floor=config.VAR_SATURATED_ERR_FLOOR, basis="saturated"))
+        else:
+            n_u, n_s, n_m = len(usable.get(d, [])), len(saturated.get(d, [])), masked.get(d, 0)
+            why = f"too few samples ({n_u} clean, {n_s} saturated; need {config.VAR_MIN_SAMPLES})"
+            if n_m:
+                why += f"; {n_m} detections have a masked (NaN) saturated core and the ePSF wing fit failed"
+            elif not n_u and not n_s:
+                why += "; detections are flagged by artifacts (ghost, persistence, streak...)"
+            out.append(BandVariability(detector=d, n=n_u + n_s, note=why))
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # Entry point
 # --------------------------------------------------------------------------- #
 
@@ -175,7 +257,7 @@ def aggregate(ms: list[FrameMeasurement]) -> PointSummary:
 
     positions = [
         PositionSample(t_mid=m.t_mid, ra=m.ra_meas, dec=m.dec_meas, err=m.pos_err_arcsec,
-                       frame_id=m.frame_id, detector=m.detector)
+                       frame_id=m.frame_id, detector=m.detector, flags=list(m.flag_names))
         for m in sorted(ms, key=lambda m: m.t_mid)
         if m.position_usable and m.ra_meas is not None and m.pos_err_arcsec
     ]
@@ -213,6 +295,6 @@ def aggregate(ms: list[FrameMeasurement]) -> PointSummary:
         proper_motion_fit=fit,
         proper_motion_note=note,
         light_curve=light_curve,
-        variability=[],  # build step 7
+        variability=variability(ms, light_curve),
         quality=quality,
     )
