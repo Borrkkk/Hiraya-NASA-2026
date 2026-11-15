@@ -48,10 +48,16 @@ export function ViewControls() {
 
 /** Loading, error, and "range changed" notes at the top of the view. */
 export function ViewStatus() {
-  const { dataStatus, noData, retryData, outdated, motion, usingMock } = useExplore();
+  const { dataStatus, noData, retryData, outdated, motion, usingMock, params } = useExplore();
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 top-[68px] z-[5] flex flex-col items-center gap-2 px-4">
+        {params.fallback && params.q && (
+          <p role="status" className="inline-flex max-w-[520px] rounded-lg border border-line-strong bg-ground/90 px-4 py-3 text-small text-ink">
+            Could not locate “{params.q}” without sky coordinates. Showing the default Orion area instead.
+            Search for a target with coordinates or enter RA and Dec.
+          </p>
+        )}
         {dataStatus === "loading" && (
           <p
             role="status"
