@@ -18,6 +18,7 @@ starts the backend on port 8000. Press Ctrl+C to stop it. Start the frontend
 separately with `npm run dev` in `frontend/`.
 
 - [Frontend](frontend/README.md): Next.js sky explorer.
+- [Installed sky index](data/INDEX.md): pinned exposure metadata and coverage for recommended fields.
 - [Backend](backend/README.md): Python API for exposure search, aligned time-lapse
   frames, blink comparisons, median stacks, and difference images.
 

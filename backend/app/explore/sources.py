@@ -8,6 +8,7 @@ loads once and is instant afterwards.
 """
 import asyncio
 import hashlib
+import os
 from pathlib import Path
 
 from urllib.parse import urlencode
@@ -17,10 +18,9 @@ from ..local_store import DATA_DIR
 from .common import DETECTORS, LEVELS, SHOTS, Shot, _read_wavelength, key, local_shots, request_for
 
 import numpy as np
-from .static_index import indexed_exposures
+from .static_index import indexed_exposures, index_directory, image_source
 from .s3_cutouts import cutout as s3_cutout
 from .s3_cutouts import metadata as s3_metadata
-import os
 
 CACHE = Path(__file__).resolve().parents[2] / ".cache" / "cutouts"
 EPOCHS = 18           # observations kept per spot, spread over the survey: each sees other wavelengths
@@ -40,7 +40,11 @@ async def ensure_shots(client, ra: float, dec: float) -> None:
             return
         # Explicit index mode must not be short-circuited by a partial bundled
         # target (Barnard's offline sample contains only detector 1).
-        if not os.environ.get('SPHEREX_INDEX_DIR'):
+        try:
+            configured_index = index_directory()
+        except (OSError, ValueError, KeyError) as exc:
+            raise ArchiveError(f'Cannot read configured SPHEREx index: {exc}') from exc
+        if configured_index is None:
             saved = await asyncio.to_thread(local_shots, *k)
             if saved:
                 SHOTS[k] = saved
@@ -78,7 +82,7 @@ async def live_shots(client, ra: float, dec: float) -> tuple[Shot, ...]:
         url = cutout_url_for(e.fits_url, ra, dec, LEVELS[0]["cutout_deg"])
         path = CACHE / f"{hashlib.sha1(url.encode()).hexdigest()}.fits"
         try:
-            if os.environ.get('SPHEREX_IMAGE_SOURCE') == 's3':
+            if image_source() == 's3':
                 async with _downloads:
                     info = await s3_metadata(e.fits_url, ra, dec)
                 # Reserve the path now; pixels are fetched only by a frame or
@@ -124,7 +128,7 @@ async def ensure_cutouts(client, shots, ra: float, dec: float, level: int) -> No
 async def ensure_cutout(client, shot: Shot, ra: float, dec: float, level: int, science: bool = False) -> Path:
     """The file to render this exposure at a level, downloading a larger cutout once if needed."""
     path = cutout_path(shot, ra, dec, level, science=science)
-    if os.environ.get('SPHEREX_IMAGE_SOURCE') == 's3' and shot.fits_url and DATA_DIR not in shot.path.parents:
+    if image_source() == 's3' and shot.fits_url and DATA_DIR not in shot.path.parents:
         async with _downloads:
             source = await s3_cutout(shot.fits_url, ra, dec, LEVELS[level]['cutout_deg'], science=science)
         # Higher-level renderers resolve cutout_path, so install the same original

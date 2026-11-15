@@ -1,0 +1,206 @@
+{
+  "upstream_snapshot": "127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f",
+  "our_source": "NASA public S3 FITS headers and DR1 directory listings",
+  "seed_sources": [
+    "upstream exposure candidates",
+    "our saved IRSA target metadata"
+  ],
+  "loaded_headers": 6893,
+  "collections": {
+    "dr1": 4721,
+    "qr2": 594,
+    "qr3": 1578
+  },
+  "targets": [
+    {
+      "id": "luhman-16",
+      "name": "Luhman 16",
+      "ra": 162.3279,
+      "dec": -53.3194,
+      "source": "frontend",
+      "recommended": true,
+      "header_records": 444
+    },
+    {
+      "id": "proxima",
+      "name": "Proxima Centauri",
+      "ra": 217.4289,
+      "dec": -62.6795,
+      "source": "frontend",
+      "recommended": true,
+      "header_records": 356
+    },
+    {
+      "id": "barnard",
+      "name": "Barnard's Star",
+      "ra": 269.4521,
+      "dec": 4.6934,
+      "source": "frontend",
+      "recommended": true,
+      "header_records": 362
+    },
+    {
+      "id": "betelgeuse",
+      "name": "Betelgeuse",
+      "ra": 88.7929,
+      "dec": 7.4071,
+      "source": "frontend",
+      "recommended": true,
+      "header_records": 350
+    },
+    {
+      "id": "orion-nebula",
+      "name": "Orion Nebula",
+      "ra": 83.8221,
+      "dec": -5.3911,
+      "source": "frontend",
+      "recommended": true,
+      "header_records": 368
+    },
+    {
+      "id": "eagle",
+      "name": "Eagle Nebula",
+      "ra": 274.7,
+      "dec": -13.8167,
+      "source": "frontend",
+      "recommended": true,
+      "header_records": 300
+    },
+    {
+      "id": "carina",
+      "name": "Carina Nebula",
+      "ra": 161.283,
+      "dec": -59.868,
+      "source": "frontend",
+      "recommended": true,
+      "header_records": 518
+    },
+    {
+      "id": "rosette",
+      "name": "Rosette Nebula",
+      "ra": 98.4375,
+      "dec": 4.9983,
+      "source": "frontend",
+      "recommended": true,
+      "header_records": 323
+    },
+    {
+      "id": "m31",
+      "name": "Andromeda Galaxy",
+      "ra": 10.6847,
+      "dec": 41.2687,
+      "source": "frontend",
+      "recommended": true,
+      "header_records": 363
+    },
+    {
+      "id": "galactic-centre",
+      "name": "Galactic Centre",
+      "ra": 266.4168,
+      "dec": -29.0078,
+      "source": "frontend",
+      "recommended": true,
+      "header_records": 105
+    },
+    {
+      "id": "pleiades",
+      "name": "Pleiades",
+      "ra": 56.75,
+      "dec": 24.1167,
+      "source": "frontend",
+      "recommended": true,
+      "header_records": 334
+    },
+    {
+      "id": "saved-barnards-star",
+      "name": "Barnard's Star",
+      "ra": 269.452076,
+      "dec": 4.693391,
+      "source": "curated",
+      "recommended": true,
+      "header_records": 410
+    },
+    {
+      "id": "saved-epsilon-indi-b",
+      "name": "Epsilon Indi Ba/Bb",
+      "ra": 330.84037,
+      "dec": -56.78625,
+      "source": "curated",
+      "recommended": true,
+      "header_records": 506
+    },
+    {
+      "id": "saved-wise-0855",
+      "name": "WISE 0855\u22120714",
+      "ra": 133.795129,
+      "dec": -7.245147,
+      "source": "curated",
+      "recommended": true,
+      "header_records": 304
+    },
+    {
+      "id": "saved-rw-aurigae",
+      "name": "RW Aurigae",
+      "ra": 76.958847,
+      "dec": 30.401533,
+      "source": "curated",
+      "recommended": true,
+      "header_records": 378
+    },
+    {
+      "id": "saved-r-draconis",
+      "name": "R Draconis",
+      "ra": 248.928221,
+      "dec": 66.757631,
+      "source": "curated",
+      "recommended": true,
+      "header_records": 575
+    },
+    {
+      "id": "saved-kapteyns-star",
+      "name": "Kapteyn's Star",
+      "ra": 77.519157,
+      "dec": -45.021026,
+      "source": "curated",
+      "recommended": true,
+      "header_records": 437
+    },
+    {
+      "id": "saved-luhman-16",
+      "name": "Luhman 16 AB",
+      "ra": 162.30355,
+      "dec": -53.31764,
+      "source": "curated",
+      "recommended": true,
+      "header_records": 498
+    },
+    {
+      "id": "saved-mira",
+      "name": "Mira (\u03bf Ceti)",
+      "ra": 34.836635,
+      "dec": -2.977637,
+      "source": "curated",
+      "recommended": true,
+      "header_records": 410
+    },
+    {
+      "id": "saved-chi-cygni",
+      "name": "\u03c7 Cygni",
+      "ra": 296.369901,
+      "dec": 32.913461,
+      "source": "curated",
+      "recommended": true,
+      "header_records": 357
+    }
+  ],
+  "issues": [],
+  "metadata_only": true,
+  "refreshed_records": 6592,
+  "replaced_rows": 6589,
+  "additional_records": 3,
+  "snapshot": "55178b4ab02d7c2f529b32cfc9637a58111083372575abb901149dbefdcfb570",
+  "upstream_updated": "2026-11-10T14:52:01Z",
+  "total_records": 1290044,
+  "index_updated": "2026-11-15T13:56:34.696252+00:00",
+  "tile_count": 1738
+}

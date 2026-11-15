@@ -35,10 +35,10 @@ def recommended_targets():
 
 def configure_index(index_dir=None):
     if not index_dir:
-        snapshots = list((ROOT / 'backend' / '.cache' / 'exposure-index').glob('*/index.json'))
-        if not snapshots:
+        from .static_index import index_directory
+        index_dir = index_directory()
+        if index_dir is None:
             raise ValueError('Install an exposure index first or supply --index-dir')
-        index_dir = max(snapshots, key=lambda p: p.stat().st_mtime).parent
     os.environ['SPHEREX_INDEX_DIR'] = str(Path(index_dir).resolve())
     os.environ['SPHEREX_IMAGE_SOURCE'] = 's3'
 

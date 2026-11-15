@@ -1,0 +1,864 @@
+{
+  "origin": "https://github.com/ShivenKhurana1/spherex-timelapse/tree/cca8e6dc69a07632f4cee4b85330237ed7fa212f/data",
+  "snapshot": "127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f",
+  "index_updated": "2026-11-10T14:52:01Z",
+  "total_records": 1290041,
+  "tile_count": 1738,
+  "index_sha256": "127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f",
+  "metadata_only": true,
+  "total_index_records": 1290041,
+  "tiles": 1738,
+  "releases": [
+    "qr2",
+    "qr3"
+  ],
+  "approximate_coverage": true,
+  "note": "Candidate lists require FITS WCS validation. No new image pixels were downloaded. Moving-object fields need ephemerides.",
+  "targets": [
+    {
+      "id": "luhman-16",
+      "name": "Luhman 16",
+      "ra": 162.3279,
+      "dec": -53.3194,
+      "source": "frontend",
+      "recommended": true,
+      "candidate_exposures": 444,
+      "observation_ids": 226,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 438,
+        "spherex_qr3": 6
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/luhman-16.json"
+    },
+    {
+      "id": "wise-0855",
+      "name": "WISE 0855\u22120714",
+      "ra": 133.7951,
+      "dec": -7.2451,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 256,
+      "observation_ids": 129,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 256
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/wise-0855.json"
+    },
+    {
+      "id": "proxima",
+      "name": "Proxima Centauri",
+      "ra": 217.4289,
+      "dec": -62.6795,
+      "source": "frontend",
+      "recommended": true,
+      "candidate_exposures": 356,
+      "observation_ids": 193,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 228,
+        "spherex_qr3": 128
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/proxima.json"
+    },
+    {
+      "id": "barnard",
+      "name": "Barnard's Star",
+      "ra": 269.4521,
+      "dec": 4.6934,
+      "source": "frontend",
+      "recommended": true,
+      "candidate_exposures": 362,
+      "observation_ids": 182,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 240,
+        "spherex_qr3": 122
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/barnard.json"
+    },
+    {
+      "id": "ross-128",
+      "name": "Ross 128",
+      "ra": 176.9358,
+      "dec": 0.8044,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 340,
+      "observation_ids": 171,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 340
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/ross-128.json"
+    },
+    {
+      "id": "sirius",
+      "name": "Sirius",
+      "ra": 101.2872,
+      "dec": -16.7161,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 311,
+      "observation_ids": 157,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 237,
+        "spherex_qr3": 74
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/sirius.json"
+    },
+    {
+      "id": "betelgeuse",
+      "name": "Betelgeuse",
+      "ra": 88.7929,
+      "dec": 7.4071,
+      "source": "frontend",
+      "recommended": true,
+      "candidate_exposures": 350,
+      "observation_ids": 176,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 232,
+        "spherex_qr3": 118
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/betelgeuse.json"
+    },
+    {
+      "id": "vega",
+      "name": "Vega",
+      "ra": 279.2347,
+      "dec": 38.7837,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 463,
+      "observation_ids": 233,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 314,
+        "spherex_qr3": 149
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/vega.json"
+    },
+    {
+      "id": "polaris",
+      "name": "Polaris",
+      "ra": 37.9546,
+      "dec": 89.2641,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 408,
+      "observation_ids": 207,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 262,
+        "spherex_qr3": 146
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/polaris.json"
+    },
+    {
+      "id": "orion-nebula",
+      "name": "Orion Nebula",
+      "ra": 83.8221,
+      "dec": -5.3911,
+      "source": "frontend",
+      "recommended": true,
+      "candidate_exposures": 368,
+      "observation_ids": 186,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 237,
+        "spherex_qr3": 131
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/orion-nebula.json"
+    },
+    {
+      "id": "horsehead",
+      "name": "Horsehead Nebula",
+      "ra": 85.2458,
+      "dec": -2.4583,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 415,
+      "observation_ids": 210,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 248,
+        "spherex_qr3": 167
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/horsehead.json"
+    },
+    {
+      "id": "crab",
+      "name": "Crab Nebula",
+      "ra": 83.6331,
+      "dec": 22.0145,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 320,
+      "observation_ids": 160,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 216,
+        "spherex_qr3": 104
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/crab.json"
+    },
+    {
+      "id": "eagle",
+      "name": "Eagle Nebula",
+      "ra": 274.7,
+      "dec": -13.8167,
+      "source": "frontend",
+      "recommended": true,
+      "candidate_exposures": 300,
+      "observation_ids": 179,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 141,
+        "spherex_qr3": 159
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/eagle.json"
+    },
+    {
+      "id": "carina",
+      "name": "Carina Nebula",
+      "ra": 161.283,
+      "dec": -59.868,
+      "source": "frontend",
+      "recommended": true,
+      "candidate_exposures": 518,
+      "observation_ids": 278,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 512,
+        "spherex_qr3": 6
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/carina.json"
+    },
+    {
+      "id": "rosette",
+      "name": "Rosette Nebula",
+      "ra": 98.4375,
+      "dec": 4.9983,
+      "source": "frontend",
+      "recommended": true,
+      "candidate_exposures": 323,
+      "observation_ids": 162,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 226,
+        "spherex_qr3": 97
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/rosette.json"
+    },
+    {
+      "id": "lagoon",
+      "name": "Lagoon Nebula",
+      "ra": 270.904,
+      "dec": -24.387,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 137,
+      "observation_ids": 88,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 32,
+        "spherex_qr3": 105
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/lagoon.json"
+    },
+    {
+      "id": "trifid",
+      "name": "Trifid Nebula",
+      "ra": 270.675,
+      "dec": -23.03,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 153,
+      "observation_ids": 98,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 42,
+        "spherex_qr3": 111
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/trifid.json"
+    },
+    {
+      "id": "ring",
+      "name": "Ring Nebula",
+      "ra": 283.396,
+      "dec": 33.029,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 392,
+      "observation_ids": 198,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 268,
+        "spherex_qr3": 124
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/ring.json"
+    },
+    {
+      "id": "tarantula",
+      "name": "Tarantula Nebula",
+      "ra": 84.658,
+      "dec": -69.083,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 1163,
+      "observation_ids": 591,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 993,
+        "spherex_qr3": 170
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/tarantula.json"
+    },
+    {
+      "id": "m31",
+      "name": "Andromeda Galaxy",
+      "ra": 10.6847,
+      "dec": 41.2687,
+      "source": "frontend",
+      "recommended": true,
+      "candidate_exposures": 363,
+      "observation_ids": 184,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 308,
+        "spherex_qr3": 55
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/m31.json"
+    },
+    {
+      "id": "m33",
+      "name": "Triangulum Galaxy",
+      "ra": 23.4621,
+      "dec": 30.6602,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 423,
+      "observation_ids": 214,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 326,
+        "spherex_qr3": 97
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/m33.json"
+    },
+    {
+      "id": "m51",
+      "name": "Whirlpool Galaxy",
+      "ra": 202.4696,
+      "dec": 47.1952,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 412,
+      "observation_ids": 207,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 412
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/m51.json"
+    },
+    {
+      "id": "lmc",
+      "name": "Large Magellanic Cloud",
+      "ra": 80.894,
+      "dec": -69.756,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 1216,
+      "observation_ids": 621,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 1026,
+        "spherex_qr3": 190
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/lmc.json"
+    },
+    {
+      "id": "smc",
+      "name": "Small Magellanic Cloud",
+      "ra": 13.1867,
+      "dec": -72.8286,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 406,
+      "observation_ids": 207,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 334,
+        "spherex_qr3": 72
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/smc.json"
+    },
+    {
+      "id": "galactic-centre",
+      "name": "Galactic Centre",
+      "ra": 266.4168,
+      "dec": -29.0078,
+      "source": "frontend",
+      "recommended": true,
+      "candidate_exposures": 105,
+      "observation_ids": 67,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 12,
+        "spherex_qr3": 93
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/galactic-centre.json"
+    },
+    {
+      "id": "pleiades",
+      "name": "Pleiades",
+      "ra": 56.75,
+      "dec": 24.1167,
+      "source": "frontend",
+      "recommended": true,
+      "candidate_exposures": 334,
+      "observation_ids": 167,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 224,
+        "spherex_qr3": 110
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/pleiades.json"
+    },
+    {
+      "id": "omega-centauri",
+      "name": "Omega Centauri",
+      "ra": 201.6968,
+      "dec": -47.4795,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 432,
+      "observation_ids": 219,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 418,
+        "spherex_qr3": 14
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/omega-centauri.json"
+    },
+    {
+      "id": "beehive",
+      "name": "Beehive Cluster",
+      "ra": 130.1,
+      "dec": 19.667,
+      "source": "frontend",
+      "recommended": false,
+      "candidate_exposures": 228,
+      "observation_ids": 115,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 228
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/beehive.json"
+    },
+    {
+      "id": "saved-barnards-star",
+      "name": "Barnard's Star",
+      "ra": 269.452076,
+      "dec": 4.693391,
+      "source": "curated",
+      "recommended": true,
+      "candidate_exposures": 362,
+      "observation_ids": 182,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 240,
+        "spherex_qr3": 122
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/saved-barnards-star.json"
+    },
+    {
+      "id": "saved-epsilon-indi-b",
+      "name": "Epsilon Indi Ba/Bb",
+      "ra": 330.84037,
+      "dec": -56.78625,
+      "source": "curated",
+      "recommended": true,
+      "candidate_exposures": 458,
+      "observation_ids": 243,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 341,
+        "spherex_qr3": 117
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/saved-epsilon-indi-b.json"
+    },
+    {
+      "id": "saved-wise-0855",
+      "name": "WISE 0855\u22120714",
+      "ra": 133.795129,
+      "dec": -7.245147,
+      "source": "curated",
+      "recommended": true,
+      "candidate_exposures": 256,
+      "observation_ids": 129,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 256
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/saved-wise-0855.json"
+    },
+    {
+      "id": "saved-rw-aurigae",
+      "name": "RW Aurigae",
+      "ra": 76.958847,
+      "dec": 30.401533,
+      "source": "curated",
+      "recommended": true,
+      "candidate_exposures": 330,
+      "observation_ids": 167,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 221,
+        "spherex_qr3": 109
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/saved-rw-aurigae.json"
+    },
+    {
+      "id": "saved-r-draconis",
+      "name": "R Draconis",
+      "ra": 248.928221,
+      "dec": 66.757631,
+      "source": "curated",
+      "recommended": true,
+      "candidate_exposures": 527,
+      "observation_ids": 268,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 527
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/saved-r-draconis.json"
+    },
+    {
+      "id": "saved-kapteyns-star",
+      "name": "Kapteyn's Star",
+      "ra": 77.519157,
+      "dec": -45.021026,
+      "source": "curated",
+      "recommended": true,
+      "candidate_exposures": 435,
+      "observation_ids": 223,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 272,
+        "spherex_qr3": 163
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/saved-kapteyns-star.json"
+    },
+    {
+      "id": "saved-luhman-16",
+      "name": "Luhman 16 AB",
+      "ra": 162.30355,
+      "dec": -53.31764,
+      "source": "curated",
+      "recommended": true,
+      "candidate_exposures": 450,
+      "observation_ids": 231,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 444,
+        "spherex_qr3": 6
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/saved-luhman-16.json"
+    },
+    {
+      "id": "saved-mira",
+      "name": "Mira (\u03bf Ceti)",
+      "ra": 34.836635,
+      "dec": -2.977637,
+      "source": "curated",
+      "recommended": true,
+      "candidate_exposures": 362,
+      "observation_ids": 186,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 298,
+        "spherex_qr3": 64
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/saved-mira.json"
+    },
+    {
+      "id": "saved-chi-cygni",
+      "name": "\u03c7 Cygni",
+      "ra": 296.369901,
+      "dec": 32.913461,
+      "source": "curated",
+      "recommended": true,
+      "candidate_exposures": 357,
+      "observation_ids": 194,
+      "detectors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "collections": {
+        "spherex_qr2": 307,
+        "spherex_qr3": 50
+      },
+      "candidate_file": "backend/.cache/exposure-index/127b28a89300fd431a676ada7dc90a867495fd8b2d4ce46abc2cdfaecdc74a1f/targets/saved-chi-cygni.json"
+    }
+  ]
+}
