@@ -2,6 +2,21 @@
 
 Explore the sky with Aladin Lite and retrieve SPHEREx observations by coordinates.
 
+For a new Windows computer, follow [backend/QUICKSTART.md](backend/QUICKSTART.md).
+Run `.\backend\setup.cmd` once, add an optional API key to `backend/.env`, then
+start with `.\backend\run.cmd`. The launcher loads the settings automatically.
+
+With backend dependencies installed and an exposure index downloaded,
+start the backend from PowerShell in this directory:
+
+```powershell
+.\backend\run.cmd
+```
+
+The script selects the newest installed index, enables S3 image caching, and
+starts the backend on port 8000. Press Ctrl+C to stop it. Start the frontend
+separately with `npm run dev` in `frontend/`.
+
 - [Frontend](frontend/README.md): Next.js sky explorer.
 - [Backend](backend/README.md): Python API for exposure search, aligned time-lapse
   frames, blink comparisons, median stacks, and difference images.

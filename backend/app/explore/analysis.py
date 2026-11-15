@@ -8,7 +8,7 @@ What is a rule, not a measurement: the type guess. It is rule-based on those
 computed facts (no model, no score from a model) and the reason always says
 which facts it used. The thresholds are placeholders for the science team.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from math import hypot, atan2, degrees, sqrt
 
 import numpy as np
@@ -16,7 +16,7 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 from scipy.ndimage import gaussian_filter, maximum_filter
 
-from .common import (LEVELS, Shot, aligned, epochs_at, grid_wcs, in_band, mjd_to_iso, shot_for, shots_at)
+from .common import (LEVELS, Shot, aligned, epochs_at, grid_wcs, in_band, mjd_to_iso, shot_for, shots_at, _read_wavelength)
 from .sources import cutout_path
 
 # Where the placeholders live (spec Q10: the science team owns these).
@@ -79,7 +79,11 @@ def box_geometry(ra: float, dec: float, box: dict, level: int = 0):
 
 
 def measure(shot: Shot, ra: float, dec: float, box: dict, level: int = 0) -> BoxStats:
-    a = aligned(str(cutout_path(shot, ra, dec, level)), ra, dec, level)
+    path = str(cutout_path(shot, ra, dec, level))
+    a = aligned(path, ra, dec, level)
+    # Detector wavelength varies with position. The area's centre wavelength
+    # is appropriate for the picker, but the plot must use the selected box.
+    shot = replace(shot, wavelength=_read_wavelength(path, box['ra'], box['dec']))
     mask, _, _, hw, hh, edge = box_geometry(ra, dec, box, level)
     expected = max(1.0, (2 * hw) * (2 * hh))
     vals = a[mask]
@@ -153,7 +157,7 @@ def inspect(ra: float, dec: float, target: dict, epoch: str, level: int = 0, sho
         reason = f"Likely a star: bright and compact, like a point of light. We only have {waves} for this spot, so we can't tell what kind."
         kind = "star"
     else:
-        reason = f"Something soft and spread out, maybe a galaxy or gas. We only have {waves} for this spot."
+        reason = f"The selected light appears spread out. We measured its brightness at {waves} in this region."
         kind = "galaxy"
     return _result(False, kind, reason, scores, spectrum)
 

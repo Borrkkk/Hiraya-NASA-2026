@@ -69,7 +69,7 @@ def check_local(box: dict, mjd: float):
             kind, headline = CATEGORY.get(t.get("category"), ("star", "Known object"))
             return {"outcome": "explained", "headline": headline, "name": t["name"],
                     "fact": t.get("why", "Listed in the saved target list at this position."),
-                    "source": "Saved target list", "objectType": kind}
+                    "source": "Saved target list", "objectType": kind, "position": {"ra": ra, "dec": dec}}
     return None
 
 
@@ -85,7 +85,8 @@ async def check_simbad(client: httpx.AsyncClient, box: dict):
     name, otype = rows[0][0], rows[0][1] or "*"
     kind = OTYPE.get(otype, "star")
     return {"outcome": "explained", "headline": f"Known {OTYPE_NAME[kind]}", "name": name,
-            "fact": f"SIMBAD lists {name} at this position (type {otype}).", "source": "SIMBAD", "objectType": kind}
+            "fact": f"SIMBAD lists {name} at this position (type {otype}).", "source": "SIMBAD", "objectType": kind,
+            "position": {"ra": rows[0][2], "dec": rows[0][3]}}
 
 
 async def check_skybot(client: httpx.AsyncClient, box: dict, mjd: float):

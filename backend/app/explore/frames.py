@@ -1,5 +1,10 @@
 """The Area description and the per-band frame images."""
 from functools import lru_cache
+from threading import Lock
+import hashlib
+import json
+from pathlib import Path
+import uuid
 from io import BytesIO
 
 import numpy as np
@@ -59,7 +64,9 @@ def build_area(ra: float, dec: float):
             bands.append({"id": band, "state": "no-coverage",
                           "reason": f"No observation at {BAND_LABELS[band]} for this spot. We have {seen} µm."})
         else:
-            bands.append({"id": band, "state": "ok", "empty": _is_empty(ra, dec, band)})
+            # Pixel content is unknown at metadata time. Do not download or
+            # align every frame merely to populate the band picker.
+            bands.append({"id": band, "state": "ok", "empty": None})
     return {
         "id": area_id(ra, dec),
         "name": target["name"] if target else None,
@@ -68,8 +75,8 @@ def build_area(ra: float, dec: float):
         "sizePx": SIZE_PX,
         "pixelScaleArcsec": PIXEL_SCALE,
         # `bands`: which rows have an image for this observation, so the page can skip empty ones.
-        "epochs": [{"id": e, "date": mjd_to_iso(m), "bands": [b for b in BAND_WINDOWS if shot_for(ra, dec, e, b)],
-                    "coverage": _coverage(ra, dec, e)} for e, m in epochs],
+        "epochs": [{"id": e, "date": mjd_to_iso(m), "bands": [b for b in BAND_WINDOWS if shot_for(ra, dec, e, b)]}
+                   for e, m in epochs],
         "bands": bands,
         # The frames are a small tile; let people zoom out to the sky around it.
         "levels": [{k: l[k] for k in ("level", "extentDeg", "sizePx", "pixelScaleArcsec")} for l in LEVELS],
@@ -106,20 +113,41 @@ def _noise(finite: np.ndarray) -> float:
     return float(1.4826 * np.median(np.abs(finite - np.median(finite))))
 
 
-@lru_cache(maxsize=32)
-def _stretch(ra: float, dec: float, band: str) -> tuple[float, float]:
-    """One stretch per band across all its frames, so brightness compares between epochs."""
-    values = []
-    for e, _ in epochs_at(ra, dec):
-        s = shot_for(ra, dec, e, band)
-        if s is not None:
-            a = aligned(str(s.path), ra, dec)
-            values.append(a[np.isfinite(a)])
-    if not values:
-        return 0.0, 1.0
-    # Background (the median, after subtraction) maps to black so stars stand out.
-    low, high = np.percentile(np.concatenate(values), [50, 99.8])
-    return float(low), float(max(high, low + 1e-9))
+_stretches = {}
+_stretch_lock = Lock()
+FRAME_CACHE = Path(__file__).resolve().parents[2] / '.cache' / 'frames'
+
+
+def _save(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(f'.{uuid.uuid4().hex}.part')
+    try:
+        temporary.write_bytes(data)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _stretch(ra: float, dec: float, band: str, reference: np.ndarray) -> tuple[float, float]:
+    """Use the first displayed frame as a fixed scale for subsequent epochs.
+
+    A shared scale preserves brightness changes without loading the entire
+    time series before showing the first frame.
+    """
+    with _stretch_lock:
+        identity = (ra, dec, band)
+        if identity not in _stretches:
+            stored = FRAME_CACHE / (hashlib.sha256(f'stretch-v1:{identity}'.encode()).hexdigest() + '.json')
+            if stored.exists():
+                _stretches[identity] = tuple(json.loads(stored.read_text()))
+                return _stretches[identity]
+            finite = reference[np.isfinite(reference)]
+            if not finite.size:
+                return 0.0, 1.0
+            low, high = np.percentile(finite, [50, 99.8])
+            _stretches[identity] = float(low), float(max(high, low + 1e-9))
+            _save(stored, json.dumps(_stretches[identity]).encode())
+        return _stretches[identity]
 
 
 def frame_png(ra: float, dec: float, epoch_id: str, band: str, level: int = 0, path=None) -> bytes:
@@ -128,12 +156,19 @@ def frame_png(ra: float, dec: float, epoch_id: str, band: str, level: int = 0, p
     size = LEVELS[level]["sizePx"]
     if s is None:
         return _encode(np.zeros((size, size, 4), dtype=np.uint8))
-    a = aligned(str(path or s.path), ra, dec, level)
-    low, high = _stretch(ra, dec, band)
+    source = Path(path or s.path)
+    identity = f'png-v1:{ra}:{dec}:{epoch_id}:{band}:{level}:{source}:{source.stat().st_mtime_ns}'
+    cached = FRAME_CACHE / (hashlib.sha256(identity.encode()).hexdigest() + '.png')
+    if cached.exists():
+        return cached.read_bytes()
+    a = aligned(str(source), ra, dec, level)
+    low, high = _stretch(ra, dec, band, a)
     norm = np.clip((np.nan_to_num(a) - low) / (high - low), 0, 1)
     gray = 255 * np.arcsinh(10 * norm) / np.arcsinh(10)
     rgba = np.stack([gray, gray, gray, np.isfinite(a) * 255], axis=-1).astype(np.uint8)
-    return _encode(np.flipud(rgba))  # array row 0 is south; image row 0 must be north
+    output = _encode(np.flipud(rgba))  # array row 0 is south; image row 0 must be north
+    _save(cached, output)
+    return output
 
 
 def _encode(rgba: np.ndarray) -> bytes:

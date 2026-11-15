@@ -23,8 +23,10 @@ from .sources import ensure_cutout, ensure_cutouts, ensure_shots
 from .frames import build_area, frame_png, sample_suggestion
 from .search import search
 from .verify import verify
+from .community import router as community_router, record_identification
 
 router = APIRouter(prefix="/explore", tags=["explore"])
+router.include_router(community_router, prefix='')
 
 
 class Box(BaseModel):
@@ -148,8 +150,11 @@ async def post_verify(area_id: str, body: VerifyBody, request: Request):
         await ensure_cutouts(request.app.state.client, shots, ra, dec, level)
         engine = getattr(request.app.state, "explore_science", None)
         if engine is not None:
-            return await engine.verify(ra, dec, target, body.epoch, step, level, shots)
-        return await verify(request.app.state.client, ra, dec, target, body.epoch, step, level, shots)
+            result = await engine.verify(ra, dec, target, body.epoch, step, level, shots)
+        else:
+            result = await verify(request.app.state.client, ra, dec, target, body.epoch, step, level, shots)
+        await run_in_threadpool(record_identification, result, target['box'], body.epoch)
+        return result
 
     return {"jobId": jobs.start(work)}
 

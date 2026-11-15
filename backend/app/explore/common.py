@@ -107,7 +107,9 @@ def _read_wavelength(path: str, ra: float, dec: float) -> float:
         with fits.open(path, memmap=False) as hdus:
             image = hdus["IMAGE"]
             x, y = WCS(image.header, hdus, naxis=2).celestial.all_world2pix(ra, dec, 0)
-            wave, _ = WCS(image.header, hdus, key="W").all_pix2world([x], [y], 0)
+            spectral = WCS(image.header, hdus, key="W")
+            spectral.sip = None
+            wave, _ = spectral.all_pix2world([x], [y], 0)
     return float(wave[0])
 
 
