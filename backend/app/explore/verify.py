@@ -21,7 +21,7 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 
 from ..local_store import DATA_DIR
-from .analysis import MOVERS, MIN_VALID_FRACTION, measure
+from .analysis import MOVERS, MIN_VALID_FRACTION, measure, pick_shots
 from .common import mjd_to_iso, shots_at
 
 SIMBAD = "https://simbad.cds.unistra.fr/simbad/sim-tap/sync"
@@ -104,11 +104,11 @@ async def check_skybot(client: httpx.AsyncClient, box: dict, mjd: float):
             "fact": "Its predicted path for this date passes through the box.", "source": "SkyBoT", "objectType": "asteroid"}
 
 
-def check_instrument(ra: float, dec: float, box: dict, epoch: str):
-    shots = [s for s in shots_at(ra, dec) if epoch == "all" or s.epoch_id == epoch]
+def check_instrument(ra: float, dec: float, box: dict, epoch: str, level: int = 0, shots=None):
+    shots = shots if shots is not None else [s for s in shots_at(ra, dec) if epoch == "all" or s.epoch_id == epoch]
     if not shots:
         return None
-    stats = [measure(s, ra, dec, box) for s in shots]
+    stats = [measure(s, ra, dec, box, level) for s in shots]
     valid = float(np.mean([s.valid for s in stats]))
     if valid >= MIN_VALID_FRACTION:
         return None
@@ -120,7 +120,8 @@ def check_instrument(ra: float, dec: float, box: dict, epoch: str):
             "flag": "Pipeline flags and frame edge"}
 
 
-async def verify(client: httpx.AsyncClient | None, ra: float, dec: float, target: dict, epoch: str, step=lambda m: None) -> dict:
+async def verify(client: httpx.AsyncClient | None, ra: float, dec: float, target: dict, epoch: str, step=lambda m: None,
+                 level: int = 0, shots=None) -> dict:
     box = target["box"]
     mover = MOVERS.get((target.get("areaId"), target.get("moverId")))
     notes = []
@@ -143,7 +144,7 @@ async def verify(client: httpx.AsyncClient | None, ra: float, dec: float, target
         except (httpx.HTTPError, ValueError, KeyError, IndexError):
             notes.append("SIMBAD could not be reached")
     step("Checking for instrument glitches…")
-    glitch = check_instrument(ra, dec, box, epoch)
+    glitch = check_instrument(ra, dec, box, epoch, level, shots)
 
     if glitch:
         return glitch

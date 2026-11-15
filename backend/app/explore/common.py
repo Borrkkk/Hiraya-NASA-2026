@@ -17,11 +17,19 @@ from ..imaging import align, target_wcs
 from ..local_store import local_path, search_local
 from ..models import Exposure, TimelapseRequest
 
-# The frame grid every Explore image shares. Native SPHEREx pixels are 6.15";
-# 128 px is 0.22 degrees, with live cutouts requested a little larger than that.
-SIZE_PX = 128
-PIXEL_SCALE = 6.15
-EXTENT_DEG = SIZE_PX * PIXEL_SCALE / 3600
+# Frames come in three sizes, so the picture can follow the zoom. Native SPHEREx
+# pixels are 6.15"; the widest level is coarser. `cutout_deg` is how much sky
+# we ask IRSA for, a bit more than the tile so its edges are filled.
+LEVELS = [
+    {"level": 0, "sizePx": 128, "pixelScaleArcsec": 6.15, "cutout_deg": 0.35},
+    {"level": 1, "sizePx": 256, "pixelScaleArcsec": 6.15, "cutout_deg": 0.55},
+    {"level": 2, "sizePx": 256, "pixelScaleArcsec": 14.0, "cutout_deg": 1.25},
+]
+for _l in LEVELS:
+    _l["extentDeg"] = _l["sizePx"] * _l["pixelScaleArcsec"] / 3600
+SIZE_PX = LEVELS[0]["sizePx"]            # level 0, used by the analysis code
+PIXEL_SCALE = LEVELS[0]["pixelScaleArcsec"]
+EXTENT_DEG = LEVELS[0]["extentDeg"]
 DETECTORS = range(1, 7)
 
 # SPHEREx wavelength windows (micrometres) for the page's "things to look for".
@@ -64,6 +72,14 @@ def parse_area_id(value: str) -> tuple[float, float]:
         raise KeyError(f"Unknown area {value}") from exc
 
 
+def grid_request(ra: float, dec: float, level: int = 0):
+    """What `align` and `target_wcs` need for a level's grid (duck-typed: no validation limits)."""
+    from types import SimpleNamespace
+    l = LEVELS[level]
+    return SimpleNamespace(ra=ra % 360, dec=dec, size_px=l["sizePx"], pixel_scale_arcsec=l["pixelScaleArcsec"],
+                           bad_bits=0xFFFFFFFF ^ (1 << 21), subtract_background=True)
+
+
 def request_for(ra: float, dec: float, detector: int) -> TimelapseRequest:
     return TimelapseRequest(ra=ra % 360, dec=dec, detector=detector, limit=24,
                             size_px=SIZE_PX, pixel_scale_arcsec=PIXEL_SCALE)
@@ -81,6 +97,7 @@ class Shot:
     mjd: float
     path: Path
     wavelength: float  # micrometres at the area centre
+    fits_url: str = ""  # the archive's file, to ask for bigger cutouts later
 
 
 @lru_cache(maxsize=32)
@@ -122,7 +139,7 @@ def local_shots(ra: float, dec: float) -> tuple[Shot, ...]:
                 continue
             if not np.isfinite(wavelength):
                 continue
-            shots[(e.id, e.detector)] = Shot(e.id, e.detector, e.mjd, path, wavelength)
+            shots[(e.id, e.detector)] = Shot(e.id, e.detector, e.mjd, path, wavelength, e.fits_url)
     return tuple(sorted(shots.values(), key=lambda s: (s.mjd, s.detector)))
 
 
@@ -141,12 +158,11 @@ def shot_for(ra: float, dec: float, epoch_id: str, band: str) -> Shot | None:
     return None
 
 
-@lru_cache(maxsize=96)
-def aligned(path: str, ra: float, dec: float) -> np.ndarray:
-    """The exposure on the shared grid: background removed, NaN where there is no data."""
-    body = Path(path).read_bytes()
-    return align(body, request_for(ra, dec, 1))
+@lru_cache(maxsize=160)
+def aligned(path: str, ra: float, dec: float, level: int = 0) -> np.ndarray:
+    """The exposure on a level's grid: background removed, NaN where there is no data."""
+    return align(Path(path).read_bytes(), grid_request(ra, dec, level))
 
 
-def grid_wcs(ra: float, dec: float):
-    return target_wcs(request_for(ra, dec, 1))
+def grid_wcs(ra: float, dec: float, level: int = 0):
+    return target_wcs(grid_request(ra, dec, level))

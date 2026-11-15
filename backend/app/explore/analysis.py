@@ -16,8 +16,8 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 from scipy.ndimage import gaussian_filter, maximum_filter
 
-from .common import (PIXEL_SCALE, SIZE_PX, Shot, aligned, epochs_at, grid_wcs, mjd_to_iso, shot_for,
-                     shots_at)
+from .common import (LEVELS, Shot, aligned, epochs_at, grid_wcs, in_band, mjd_to_iso, shot_for, shots_at)
+from .sources import cutout_path
 
 # Where the placeholders live (spec Q10: the science team owns these).
 SOLAR_SYSTEM_ABOVE = 0.2    # arcsec per hour
@@ -45,20 +45,42 @@ class BoxStats:
     npix: float
 
 
-def box_geometry(ra: float, dec: float, box: dict):
-    w = grid_wcs(ra, dec)
+def pick_level(ra: float, dec: float, box: dict) -> int:
+    """The smallest frame size that holds the whole box."""
+    east = (box["ra"] - ra + 540) % 360 - 180
+    east *= float(np.cos(np.radians(dec)))
+    need = max(abs(east) + box["width"] / 2, abs(box["dec"] - dec) + box["height"] / 2) * 1.05
+    for l in LEVELS:
+        if need <= l["extentDeg"] / 2:
+            return l["level"]
+    return LEVELS[-1]["level"]
+
+
+def pick_shots(ra: float, dec: float, epoch: str, bands: list[str], level: int) -> list[Shot]:
+    """Exposures to measure. Bigger frames need a download each, so there only the
+    exposures in the bands that are on (everything, at the free smallest size)."""
+    shots = [s for s in shots_at(ra, dec) if epoch == "all" or s.epoch_id == epoch]
+    if level > 0 and bands:
+        shots = [s for s in shots if any(in_band(b, s.wavelength) for b in bands)]
+    return shots
+
+
+def box_geometry(ra: float, dec: float, box: dict, level: int = 0):
+    l = LEVELS[level]
+    size, scale = l["sizePx"], l["pixelScaleArcsec"]
+    w = grid_wcs(ra, dec, level)
     cx, cy = w.all_world2pix(box["ra"], box["dec"], 0)
-    hw = max(box["width"] * 3600 / 2 / PIXEL_SCALE, 0.5)
-    hh = max(box["height"] * 3600 / 2 / PIXEL_SCALE, 0.5)
-    yy, xx = np.indices((SIZE_PX, SIZE_PX))
+    hw = max(box["width"] * 3600 / 2 / scale, 0.5)
+    hh = max(box["height"] * 3600 / 2 / scale, 0.5)
+    yy, xx = np.indices((size, size))
     mask = (np.abs(xx - cx) <= hw) & (np.abs(yy - cy) <= hh)
-    edge = bool(cx - hw < 1 or cy - hh < 1 or cx + hw > SIZE_PX - 2 or cy + hh > SIZE_PX - 2)
+    edge = bool(cx - hw < 1 or cy - hh < 1 or cx + hw > size - 2 or cy + hh > size - 2)
     return mask, float(cx), float(cy), hw, hh, edge
 
 
-def measure(shot: Shot, ra: float, dec: float, box: dict) -> BoxStats:
-    a = aligned(str(shot.path), ra, dec)
-    mask, _, _, hw, hh, edge = box_geometry(ra, dec, box)
+def measure(shot: Shot, ra: float, dec: float, box: dict, level: int = 0) -> BoxStats:
+    a = aligned(str(cutout_path(shot, ra, dec, level)), ra, dec, level)
+    mask, _, _, hw, hh, edge = box_geometry(ra, dec, box, level)
     expected = max(1.0, (2 * hw) * (2 * hh))
     vals = a[mask]
     good = vals[np.isfinite(vals)]
@@ -78,9 +100,9 @@ def shots_for(ra: float, dec: float, epoch: str) -> list[Shot]:
 
 # ---------------------------------------------------------------- inspect
 
-def inspect(ra: float, dec: float, target: dict, epoch: str) -> dict:
+def inspect(ra: float, dec: float, target: dict, epoch: str, level: int = 0, shots: list[Shot] | None = None) -> dict:
     box = target["box"]
-    stats = [measure(s, ra, dec, box) for s in shots_for(ra, dec, epoch)]
+    stats = [measure(s, ra, dec, box, level) for s in (shots if shots is not None else shots_for(ra, dec, epoch))]
     stats = [s for s in stats if s.valid > 0]
 
     points = sorted(
@@ -123,7 +145,7 @@ def inspect(ra: float, dec: float, target: dict, epoch: str) -> dict:
         scores["empty"] = 0.9
         return _result(True, "empty", "Not enough signal to say. Try a bigger box or other bands.", scores, spectrum)
 
-    compact = ratio > 2.0 and max(box["width"], box["height"]) * 3600 / PIXEL_SCALE <= 12
+    compact = ratio > 2.0 and max(box["width"], box["height"]) * 3600 / LEVELS[0]["pixelScaleArcsec"] <= 12
     scores["star" if compact else "galaxy"] = 0.7
     scores["brown-dwarf" if compact else "star"] = 0.15
     waves = f"{nwave} wavelength{'s' if nwave != 1 else ''}"
@@ -169,17 +191,27 @@ def detect_sources(a: np.ndarray) -> list[tuple[float, float, float]]:
     return out
 
 
-def find_movers(area: str, ra: float, dec: float, epoch_ids: list[str], bands: list[str], step=lambda msg: None) -> dict:
-    wcs = grid_wcs(ra, dec)
-    epochs = {e: m for e, m in epochs_at(ra, dec)}
-    chosen = [e for e in sorted(epoch_ids, key=lambda e: epochs.get(e, 0)) if e in epochs]
-    step("Lining up the frames…")
-    frames = []
-    for e in chosen:
+MOTION_LEVEL = 1  # 0.44 degrees: wide enough to follow things that move
+
+
+def motion_shots(ra: float, dec: float, epoch_ids: list[str], bands: list[str]) -> list[Shot]:
+    """The exposure used for each epoch: the first selected band that has one, else any."""
+    out = []
+    for e in epoch_ids:
         shot = next((shot_for(ra, dec, e, b) for b in bands if shot_for(ra, dec, e, b)), None)
         shot = shot or next((s for s in shots_at(ra, dec) if s.epoch_id == e), None)
         if shot is not None:
-            frames.append((e, epochs[e], aligned(str(shot.path), ra, dec)))
+            out.append(shot)
+    return out
+
+
+def find_movers(area: str, ra: float, dec: float, epoch_ids: list[str], bands: list[str], step=lambda msg: None) -> dict:
+    wcs = grid_wcs(ra, dec, MOTION_LEVEL)
+    epochs = {e: m for e, m in epochs_at(ra, dec)}
+    chosen = [e for e in sorted(epoch_ids, key=lambda e: epochs.get(e, 0)) if e in epochs]
+    step("Lining up the frames…")
+    frames = [(s.epoch_id, epochs[s.epoch_id], aligned(str(cutout_path(s, ra, dec, MOTION_LEVEL)), ra, dec, MOTION_LEVEL))
+              for s in motion_shots(ra, dec, chosen, bands)]
     step("Matching stars between frames…")
     sources = [(e, m, detect_sources(a)) for e, m, a in frames]
     step("Looking for things that shifted…")

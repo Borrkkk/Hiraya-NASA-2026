@@ -21,7 +21,7 @@ const fmtDate = (iso: string) => {
  */
 export function Timeline() {
   const ex = useExplore();
-  const { epochs, playheadIdx, range, loadedEpochs, emptyEpochs } = ex;
+  const { epochs, playheadIdx, range, loadedEpochs } = ex;
   const trackRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [dragging, setDragging] = useState<"head" | "start" | "end" | null>(null);
@@ -95,13 +95,12 @@ export function Timeline() {
 
           {epochs.map((e, i) => {
             const loaded = loadedEpochs[i];
-            const empty = emptyEpochs[i];
             const inRange = i >= range[0] && i <= range[1];
             return (
               <button
                 key={e.id}
                 type="button"
-                aria-label={`${fmtDate(e.date)}${empty ? ", nothing at the selected wavelengths" : loaded ? "" : ", still loading"}`}
+                aria-label={`${fmtDate(e.date)}${loaded ? "" : ", still loading"}`}
                 disabled={!ex.toolsEnabled && !loaded}
                 onClick={() => ex.setPlayhead(i)}
                 onPointerEnter={() => setHover(i)}
@@ -114,17 +113,13 @@ export function Timeline() {
                 <span
                   className={cn(
                     "size-2.5 rounded-full border-2",
-                    empty
-                      ? "size-1.5 border-ink-muted bg-ink-muted opacity-60"
-                      : loaded
-                        ? inRange ? "border-ink bg-ink" : "border-ink-muted bg-ink-muted"
-                        : "border-ink-secondary bg-surface",
+                    loaded ? (inRange ? "border-ink bg-ink" : "border-ink-muted bg-ink-muted") : "border-ink-secondary bg-surface",
                   )}
                 />
                 {hover === i && (
                   <span className="pointer-events-none absolute bottom-[calc(100%+6px)] z-20 whitespace-nowrap rounded-xs border border-line-strong bg-overlay px-2 py-1 text-small text-ink">
                     {fmtDate(e.date)}
-                    {empty ? <span className="text-ink-secondary"> · nothing at these wavelengths</span> : !loaded && <span className="text-ink-secondary"> · loading</span>}
+                    {!loaded && <span className="text-ink-secondary"> · loading</span>}
                   </span>
                 )}
               </button>

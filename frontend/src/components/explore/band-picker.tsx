@@ -12,7 +12,7 @@ import { useExplore } from "./use-explore";
  * read from the swatches.
  */
 export function BandPicker() {
-  const { area, bandsOn, toggleBand, toolsEnabled } = useExplore();
+  const { area, bandsOn, toggleBand, toolsEnabled, bandBlocked } = useExplore();
   const [open, setOpen] = useState<string | null>(null);
 
   return (
@@ -30,9 +30,10 @@ export function BandPicker() {
           const noCoverage = status?.state === "no-coverage";
           const empty = status?.state === "ok" && status.empty && on;
           const lastOn = on && bandsOn.length === 1;
+          const blocked = !on && !!bandBlocked[b.id];
           const expanded = open === b.id;
           // One line under the name: the most useful thing for this row right now.
-          const sub = noCoverage && status.state === "no-coverage" ? status.reason : empty ? EMPTY_BAND_NOTE : b.looksFor;
+          const sub = noCoverage && status.state === "no-coverage" ? status.reason : blocked ? bandBlocked[b.id] : empty ? EMPTY_BAND_NOTE : b.looksFor;
           return (
             <li key={b.id} className="flex flex-col">
               <div className="flex items-center rounded-lg transition-colors duration-(--dur-feedback) ease-standard hover:bg-raised">
@@ -40,10 +41,10 @@ export function BandPicker() {
                   type="button"
                   role="switch"
                   aria-checked={on}
-                  disabled={noCoverage || (!toolsEnabled && !on) || lastOn}
+                  disabled={noCoverage || blocked || (!toolsEnabled && !on) || lastOn}
                   title={lastOn ? "At least one has to stay on" : undefined}
                   onClick={() => toggleBand(b.id)}
-                  className={cn("flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-left disabled:cursor-not-allowed", noCoverage && "opacity-60")}
+                  className={cn("flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-left disabled:cursor-not-allowed", (noCoverage || blocked) && "opacity-60")}
                 >
                   <span
                     aria-hidden="true"

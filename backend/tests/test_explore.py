@@ -162,3 +162,29 @@ def test_live_path_builds_shots_from_an_irsa_style_table_and_cutouts(monkeypatch
     assert {s.detector for s in shots} == {1}
     assert shots[0].wavelength == pytest.approx(0.757, abs=0.002)
     assert len(list(tmp_path.glob("*.fits"))) == 2  # cutouts are cached on disk
+
+
+def test_frames_come_in_three_sizes_and_the_widest_is_wider(client):
+    from io import BytesIO
+    from PIL import Image
+    A_ = AREA
+    area = client.get("/explore/area", params={"ra": RA, "dec": DEC}).json()
+    assert [l["sizePx"] for l in area["levels"]] == [128, 256, 256]
+    assert area["levels"][2]["extentDeg"] > 2 * area["levels"][0]["extentDeg"]
+    for lv, size in enumerate((128, 256, 256)):
+        r = client.get(f"/explore/areas/{A_}/frames/2025W35_1A_0658_1/starlight", params={"level": lv})
+        assert Image.open(BytesIO(r.content)).size == (size, size)
+    assert client.get(f"/explore/areas/{A_}/frames/2025W35_1A_0658_1/starlight", params={"level": 9}).status_code == 404
+
+
+def test_epochs_say_which_bands_they_have_and_how_full_they_are(client):
+    area = client.get("/explore/area", params={"ra": RA, "dec": DEC}).json()
+    for e in area["epochs"]:
+        assert e["bands"] == ["starlight"] and 0 < e["coverage"] <= 1
+
+
+def test_the_box_picks_the_smallest_frame_that_holds_it():
+    from app.explore.analysis import pick_level
+    assert pick_level(RA, DEC, box(RA, DEC, 0.01)) == 0
+    assert pick_level(RA, DEC, box(RA + 0.15, DEC, 0.01)) == 1
+    assert pick_level(RA, DEC, box(RA + 0.4, DEC, 0.01)) == 2

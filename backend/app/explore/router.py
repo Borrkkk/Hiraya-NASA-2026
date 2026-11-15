@@ -16,10 +16,10 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from . import jobs
-from .analysis import find_movers, inspect
+from .analysis import MOTION_LEVEL, find_movers, inspect, motion_shots, pick_level, pick_shots
 from ..archive import ArchiveError
-from .common import BAND_WINDOWS, key, parse_area_id
-from .sources import ensure_shots
+from .common import BAND_WINDOWS, LEVELS, key, parse_area_id, shot_for
+from .sources import ensure_cutout, ensure_cutouts, ensure_shots
 from .frames import build_area, frame_png, sample_suggestion
 from .search import search
 from .verify import verify
@@ -64,6 +64,13 @@ async def _ready(client, ra: float, dec: float) -> None:
         raise HTTPException(502, detail=f"Couldn't reach NASA's SPHEREx archive: {exc}") from None
 
 
+async def _fetch(request: Request, shots, ra: float, dec: float, level: int) -> None:
+    try:
+        await ensure_cutouts(request.app.state.client, shots, ra, dec, level)
+    except ArchiveError as exc:
+        raise HTTPException(502, detail=f"Couldn't reach NASA's SPHEREx archive: {exc}") from None
+
+
 async def _area(area_id: str, request: Request) -> tuple[float, float]:
     try:
         ra, dec = parse_area_id(area_id)
@@ -86,11 +93,18 @@ async def get_area(request: Request, ra: float, dec: float, fov: float | None = 
 
 
 @router.get("/areas/{area_id}/frames/{epoch}/{band}")
-async def get_frame(area_id: str, epoch: str, band: str, request: Request):
+async def get_frame(area_id: str, epoch: str, band: str, request: Request, level: int = 0):
     if band not in BAND_WINDOWS:
         raise HTTPException(404, "Unknown band")
+    if not 0 <= level < len(LEVELS):
+        raise HTTPException(404, "Unknown level")
     ra, dec = await _area(area_id, request)
-    png = await run_in_threadpool(frame_png, ra, dec, epoch, band)
+    shot = shot_for(ra, dec, epoch, band)
+    try:
+        path = await ensure_cutout(request.app.state.client, shot, ra, dec, level) if shot else None
+    except ArchiveError as exc:
+        raise HTTPException(502, detail=f"Couldn't reach NASA's SPHEREx archive: {exc}") from None
+    png = await run_in_threadpool(frame_png, ra, dec, epoch, band, level, path)
     return Response(png, media_type="image/png", headers={"Cache-Control": "public, max-age=300"})
 
 
@@ -99,7 +113,10 @@ async def post_inspect(area_id: str, body: InspectBody, request: Request):
     ra, dec = await _area(area_id, request)
     target = body.target.model_dump()
     target["areaId"] = area_id
-    return await run_in_threadpool(inspect, ra, dec, target, body.epoch)
+    level = pick_level(ra, dec, target["box"])
+    shots = pick_shots(ra, dec, body.epoch, body.bands, level)
+    await _fetch(request, shots, ra, dec, level)
+    return await run_in_threadpool(inspect, ra, dec, target, body.epoch, level, shots)
 
 
 @router.post("/areas/{area_id}/motion")
@@ -107,6 +124,8 @@ async def post_motion(area_id: str, body: MotionBody, request: Request):
     ra, dec = await _area(area_id, request)
 
     async def work(step):
+        step("Getting the wider frames…")
+        await ensure_cutouts(request.app.state.client, motion_shots(ra, dec, body.epochs, body.bands), ra, dec, MOTION_LEVEL)
         return await run_in_threadpool(find_movers, area_id, ra, dec, body.epochs, body.bands, step)
 
     return {"jobId": jobs.start(work)}
@@ -119,8 +138,12 @@ async def post_verify(area_id: str, body: VerifyBody, request: Request):
     target["areaId"] = area_id
     target["moverId"] = body.moverId or target.get("moverId")
 
+    level = pick_level(ra, dec, target["box"])
+    shots = pick_shots(ra, dec, body.epoch, body.bands, level)
+
     async def work(step):
-        return await verify(request.app.state.client, ra, dec, target, body.epoch, step)
+        await ensure_cutouts(request.app.state.client, shots, ra, dec, level)
+        return await verify(request.app.state.client, ra, dec, target, body.epoch, step, level, shots)
 
     return {"jobId": jobs.start(work)}
 

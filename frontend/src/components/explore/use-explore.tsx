@@ -102,8 +102,9 @@ function useController() {
 
   // ---- user choices
   const [bandsOn, setBandsOn] = useState<BandId[]>(params.bands);
-  const [playheadOverride, setPlayhead] = useState<number | null>(null);
-  const [rangeOverride, setRange] = useState<[number, number] | null>(null);
+  // Kept as ids, not positions, because the list of observations changes when bands do.
+  const [playheadId, setPlayheadId] = useState<string | null>(null);
+  const [rangeIds, setRangeIds] = useState<[string, string] | null>(null);
   const [playing, setPlaying] = useState(false);
   const [layerId, setLayerId] = useState<string | null>(params.layer);
   const [curtain, setCurtain] = useState(0.5);
@@ -115,74 +116,116 @@ function useController() {
   const [motion, setMotion] = useState<MotionState>({ status: "idle" });
   const [verifyState, setVerify] = useState<VerifyState>({ status: "idle" });
 
-  // ---- derived
-  const epochs = useMemo(
+  // ---- bands and observations
+  const everyEpoch = useMemo(
     () => (area ? [...area.epochs].sort((a, b) => Date.parse(a.date) - Date.parse(b.date)) : []),
     [area],
   );
-  const lastIdx = Math.max(0, epochs.length - 1);
-  const urlEpochIdx = params.epoch ? epochs.findIndex((e) => e.id === params.epoch) : -1;
-  const range = useMemo<[number, number]>(() => rangeOverride ?? [0, lastIdx], [rangeOverride, lastIdx]);
-
   const bandStatus = useCallback(
     (id: BandId) => area?.bands.find((b) => b.id === id),
     [area],
   );
+  const seenTogether = useCallback(
+    (bands: BandId[]) => everyEpoch.some((e) => !e.bands || bands.every((b) => e.bands!.includes(b))),
+    [everyEpoch],
+  );
   const activeBands = useMemo(() => {
     if (!area) return bandsOn;
     const ok = bandsOn.filter((b) => bandStatus(b)?.state !== "no-coverage");
-    if (ok.length) return ok;
     const first = BANDS.find((b) => bandStatus(b.id)?.state !== "no-coverage");
-    return first ? [first.id] : [];
-  }, [area, bandsOn, bandStatus]);
+    const picked = ok.length ? ok : first ? [first.id] : [];
+    // Bands that are never seen in the same observation can't be shown together.
+    return seenTogether(picked) ? picked : picked.slice(0, 1);
+  }, [area, bandsOn, bandStatus, seenTogether]);
 
-  // Each exposure sees only some wavelengths: does this observation have any of the bands that are on?
-  const hasData = useCallback(
-    (i: number) => {
-      const bands = epochs[i]?.bands;
-      return !bands || activeBands.some((b) => bands.includes(b));
+  // Only observations that have EVERY band that is on. Fewer bands, more observations.
+  const epochs = useMemo(
+    () => everyEpoch.filter((e) => !e.bands || activeBands.every((b) => e.bands!.includes(b))),
+    [everyEpoch, activeBands],
+  );
+  const lastIdx = Math.max(0, epochs.length - 1);
+  const idxOf = useCallback(
+    (id: string | null) => {
+      if (!id || !epochs.length) return -1;
+      const exact = epochs.findIndex((e) => e.id === id);
+      if (exact >= 0) return exact;
+      // The observation dropped out (a band was added): take the nearest one in time.
+      const when = Date.parse(everyEpoch.find((e) => e.id === id)?.date ?? "");
+      if (!Number.isFinite(when)) return -1;
+      let best = 0;
+      epochs.forEach((e, i) => {
+        if (Math.abs(Date.parse(e.date) - when) < Math.abs(Date.parse(epochs[best].date) - when)) best = i;
+      });
+      return best;
     },
-    [epochs, activeBands],
+    [epochs, everyEpoch],
   );
-  // Open on the latest observation that has something to show.
-  const latestWithData = useMemo(() => {
-    for (let i = lastIdx; i >= 0; i--) if (hasData(i)) return i;
-    return lastIdx;
-  }, [lastIdx, hasData]);
-  const playheadIdx = clamp(
-    playheadOverride ?? (urlEpochIdx >= 0 && hasData(urlEpochIdx) ? urlEpochIdx : latestWithData),
-    0,
-    lastIdx,
-  );
+  const range = useMemo<[number, number]>(() => {
+    const a = idxOf(rangeIds?.[0] ?? null);
+    const b = idxOf(rangeIds?.[1] ?? null);
+    return a >= 0 && b >= 0 ? [Math.min(a, b), Math.max(a, b)] : [0, lastIdx];
+  }, [rangeIds, idxOf, lastIdx]);
+  const urlIdx = idxOf(params.epoch);
+  // Open on the observation with the most data (the latest if they are equal).
+  const fullestIdx = useMemo(() => {
+    let best = lastIdx;
+    epochs.forEach((e, i) => {
+      if ((e.coverage ?? 0) >= (epochs[best]?.coverage ?? 0)) best = i;
+    });
+    return best;
+  }, [epochs, lastIdx]);
+  const playheadIdx = clamp(idxOf(playheadId) >= 0 ? idxOf(playheadId) : urlIdx >= 0 ? urlIdx : fullestIdx, 0, lastIdx);
   const playheadEpoch = epochs[playheadIdx];
 
-  // Ask for the visible epoch first, the rest in the background.
+  // Bands that can't join the ones that are on, because no observation has both.
+  const bandBlocked = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const b of area?.bands ?? []) {
+      if (b.state !== "ok" || activeBands.includes(b.id)) continue;
+      if (!seenTogether([...activeBands, b.id])) out[b.id] = "Never seen in the same observation as the bands that are on.";
+    }
+    return out;
+  }, [area, activeBands, seenTogether]);
+
+  // ---- frame size follows the zoom: a bigger frame when you zoom out
+  const levels = useMemo(
+    () =>
+      area?.levels ?? (area ? [{ level: 0, extentDeg: area.extentDeg, sizePx: area.sizePx, pixelScaleArcsec: area.pixelScaleArcsec }] : []),
+    [area],
+  );
+  const getLevel = useCallback(() => {
+    const fov = viewStore.get().fov;
+    return (levels.find((l) => l.extentDeg >= fov * 1.05) ?? levels[levels.length - 1])?.level ?? 0;
+  }, [levels, viewStore]);
+  const level = useSyncExternalStore(viewStore.subscribe, getLevel, getLevel);
+
+  // Ask for what is on screen first (this frame size, then the small one as a fallback),
+  // then the other observations in the background.
   useEffect(() => {
     if (!frames || !epochs.length) return;
-    const order = [
-      playheadIdx,
-      ...epochs.map((_, i) => i).filter((i) => i !== playheadIdx).sort((a, b) => Math.abs(a - playheadIdx) - Math.abs(b - playheadIdx)),
-    ];
-    for (const i of order)
-      for (const b of activeBands) if (!epochs[i].bands || epochs[i].bands!.includes(b)) frames.request(epochs[i].id, b);
-  }, [frames, epochs, playheadIdx, activeBands]);
+    const others = epochs.map((_, i) => i).filter((i) => i !== playheadIdx).sort((a, b) => Math.abs(a - playheadIdx) - Math.abs(b - playheadIdx));
+    const ask = (i: number, lv: number) => {
+      for (const b of activeBands) if (!epochs[i].bands || epochs[i].bands!.includes(b)) frames.request(lv, epochs[i].id, b);
+    };
+    ask(playheadIdx, level);
+    if (level > 0) ask(playheadIdx, 0);
+    for (const i of others) ask(i, 0);
+    if (level > 0) for (const i of others) ask(i, level);
+  }, [frames, epochs, playheadIdx, activeBands, level]);
 
   const epochLoaded = useCallback(
-    (i: number) =>
-      !!frames &&
-      !!epochs[i] &&
-      hasData(i) &&
-      activeBands.every((b) => (epochs[i].bands && !epochs[i].bands!.includes(b)) || frames.isReady(epochs[i].id, b)),
+    (i: number) => !!frames && !!epochs[i] && activeBands.every((b) => frames.isReady(0, epochs[i].id, b)),
     // frameVersion makes this re-evaluate as frames arrive.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [frames, epochs, activeBands, frameVersion, hasData],
+    [frames, epochs, activeBands, frameVersion],
   );
   const loadedEpochs = epochs.map((_, i) => epochLoaded(i));
 
   const anyShown =
     !!frames &&
     !!playheadEpoch &&
-    activeBands.some((b) => frames.isReady(playheadEpoch.id, b)) && frameVersion >= 0;
+    activeBands.some((b) => levels.some((l) => frames.isReady(l.level, playheadEpoch.id, b))) &&
+    frameVersion >= 0;
   const dataStatus: DataStatus = areaQuery.isError
     ? "error"
     : frames?.hasError() && !anyShown
@@ -199,9 +242,9 @@ function useController() {
   }, [areaQuery, frames]);
 
   // ---- playback: step over loaded epochs inside the range
-  const playRef = useRef({ playheadIdx, range, loaded: loadedEpochs });
+  const playRef = useRef({ playheadIdx, range, loaded: loadedEpochs, ids: epochs.map((e) => e.id) });
   useEffect(() => {
-    playRef.current = { playheadIdx, range, loaded: loadedEpochs };
+    playRef.current = { playheadIdx, range, loaded: loadedEpochs, ids: epochs.map((e) => e.id) };
   });
   const loadedInRange = loadedEpochs.filter((l, i) => l && i >= range[0] && i <= range[1]).length;
   useEffect(() => {
@@ -210,7 +253,7 @@ function useController() {
       const { playheadIdx: cur, range: [a, b], loaded } = playRef.current;
       for (let step = 1; step <= b - a + 1; step++) {
         const i = a + ((cur - a + step) % (b - a + 1));
-        if (loaded[i]) return setPlayhead(i);
+        if (loaded[i]) return setPlayheadId(playRef.current.ids[i]);
       }
     }, 1100);
     return () => clearInterval(t);
@@ -397,12 +440,16 @@ function useController() {
     return () => window.removeEventListener("keydown", onKey);
   }, [box, setBox]);
 
-  const toggleBand = useCallback((id: BandId) => {
-    setBandsOn((cur) => {
-      if (cur.includes(id)) return cur.length > 1 ? cur.filter((b) => b !== id) : cur;
-      return [...cur, id];
-    });
-  }, []);
+  const toggleBand = useCallback(
+    (id: BandId) => {
+      if (!activeBands.includes(id) && bandBlocked[id]) return;
+      setBandsOn(() => {
+        if (activeBands.includes(id)) return activeBands.length > 1 ? activeBands.filter((b) => b !== id) : activeBands;
+        return [...activeBands, id];
+      });
+    },
+    [activeBands, bandBlocked],
+  );
 
   return {
     params,
@@ -426,14 +473,20 @@ function useController() {
     epochs,
     playheadIdx,
     playheadEpoch,
-    setPlayhead: (i: number) => setPlayhead(clamp(i, range[0], range[1])),
+    setPlayhead: (i: number) => {
+      const e = epochs[clamp(i, range[0], range[1])];
+      if (e) setPlayheadId(e.id);
+    },
     range,
     setRange: (r: [number, number]) => {
-      setRange(r);
-      setPlayhead((p) => clamp(p ?? playheadIdx, r[0], r[1]));
+      setRangeIds([epochs[r[0]].id, epochs[r[1]].id]);
+      const e = epochs[clamp(playheadIdx, r[0], r[1])];
+      if (e) setPlayheadId(e.id);
     },
     loadedEpochs,
-    emptyEpochs: epochs.map((_, i) => !hasData(i)),
+    level,
+    levels,
+    bandBlocked,
     playing: isPlaying,
     canPlay,
     play: () => setPlaying(true),

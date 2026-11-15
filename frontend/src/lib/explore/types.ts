@@ -53,6 +53,8 @@ export type Epoch = {
    * band. Omit if every band is available at every epoch.
    */
   bands?: BandId[];
+  /** 0..1: how much of the picture has data. The page opens on the fullest observation. */
+  coverage?: number;
 };
 
 export type SensorLayer = {
@@ -102,6 +104,12 @@ export type Area = {
    */
   minFovDeg?: number;
   maxFovDeg?: number;
+  /**
+   * Frame sizes, smallest first, so the picture can follow the zoom. Level 0 is
+   * the one described by extentDeg/sizePx/pixelScaleArcsec above. The page asks for
+   * the smallest level that covers the view. Omit for a single size.
+   */
+  levels?: FrameLevel[];
   layers: SensorLayer[];
 };
 
@@ -112,7 +120,9 @@ export type Area = {
  * The page colours and blends these itself, so toggling a band is instant.
  * See `ExploreApi.fetchFrame` for the image format.
  */
-export type FrameRequest = { areaId: string; epochId: string; band: BandId };
+export type FrameRequest = { areaId: string; epochId: string; band: BandId; level?: number };
+
+export type FrameLevel = { level: number; extentDeg: number; sizePx: number; pixelScaleArcsec: number };
 
 // ---------------------------------------------------------------- inspect
 

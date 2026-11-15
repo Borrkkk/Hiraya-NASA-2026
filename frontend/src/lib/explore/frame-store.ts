@@ -19,7 +19,7 @@ const CONCURRENCY = 3;
 export class FrameStore {
   private frames = new Map<string, FrameState>();
   private tinted = new Map<string, HTMLCanvasElement>();
-  private queue: { key: string; epochId: string; band: BandId }[] = [];
+  private queue: { key: string; level: number; epochId: string; band: BandId }[] = [];
   private active = 0;
   private subs = new Set<() => void>();
   private version = 0;
@@ -35,7 +35,7 @@ export class FrameStore {
     private areaId: string,
   ) {}
 
-  static key = (epochId: string, band: BandId) => `${epochId}|${band}`;
+  static key = (level: number, epochId: string, band: BandId) => `${level}|${epochId}|${band}`;
 
   subscribe = (fn: () => void) => {
     this.subs.add(fn);
@@ -45,12 +45,12 @@ export class FrameStore {
   };
   getVersion = () => this.version;
 
-  get(epochId: string, band: BandId): FrameState | undefined {
-    return this.frames.get(FrameStore.key(epochId, band));
+  get(level: number, epochId: string, band: BandId): FrameState | undefined {
+    return this.frames.get(FrameStore.key(level, epochId, band));
   }
 
-  isReady(epochId: string, band: BandId) {
-    return this.get(epochId, band)?.status === "ready";
+  isReady(level: number, epochId: string, band: BandId) {
+    return this.get(level, epochId, band)?.status === "ready";
   }
 
   /** Any frame that failed, so the page can show its error and a Retry. */
@@ -60,11 +60,11 @@ export class FrameStore {
   }
 
   /** Ask for frames. Already requested ones are skipped. Earlier calls go first. */
-  request(epochId: string, band: BandId) {
-    const key = FrameStore.key(epochId, band);
+  request(level: number, epochId: string, band: BandId) {
+    const key = FrameStore.key(level, epochId, band);
     if (this.frames.has(key)) return;
     this.frames.set(key, { status: "loading" });
-    this.queue.push({ key, epochId, band });
+    this.queue.push({ key, level, epochId, band });
     this.pump();
   }
 
@@ -72,18 +72,18 @@ export class FrameStore {
   retry() {
     for (const [key, f] of [...this.frames]) {
       if (f.status !== "error") continue;
-      const [epochId, band] = key.split("|") as [string, BandId];
+      const [level, epochId, band] = key.split("|") as [string, string, BandId];
       this.frames.delete(key);
-      this.request(epochId, band);
+      this.request(Number(level), epochId, band);
     }
     this.emit();
   }
 
   /** The frame's footprint in black, to put under the picture where there is data. */
-  shadowFrame(epochId: string, band: BandId): HTMLCanvasElement | null {
-    const f = this.get(epochId, band);
+  shadowFrame(level: number, epochId: string, band: BandId): HTMLCanvasElement | null {
+    const f = this.get(level, epochId, band);
     if (f?.status !== "ready") return null;
-    const key = `${FrameStore.key(epochId, band)}|shadow`;
+    const key = `${FrameStore.key(level, epochId, band)}|shadow`;
     let c = this.tinted.get(key);
     if (!c) {
       c = document.createElement("canvas");
@@ -100,10 +100,10 @@ export class FrameStore {
   }
 
   /** The band's frame as a coloured canvas, ready to add into the blend. */
-  tintedFrame(epochId: string, band: BandId, color: string): HTMLCanvasElement | null {
-    const f = this.get(epochId, band);
+  tintedFrame(level: number, epochId: string, band: BandId, color: string): HTMLCanvasElement | null {
+    const f = this.get(level, epochId, band);
     if (f?.status !== "ready") return null;
-    const key = `${FrameStore.key(epochId, band)}|${color}`;
+    const key = `${FrameStore.key(level, epochId, band)}|${color}`;
     let c = this.tinted.get(key);
     if (!c) {
       c = document.createElement("canvas");
@@ -142,7 +142,7 @@ export class FrameStore {
       this.active++;
       this.api
         .fetchFrame(
-          { areaId: this.areaId, epochId: job.epochId, band: job.band },
+          { areaId: this.areaId, epochId: job.epochId, band: job.band, level: job.level },
           { signal: this.controller.signal },
         )
         .then((blob) => createImageBitmap(blob))

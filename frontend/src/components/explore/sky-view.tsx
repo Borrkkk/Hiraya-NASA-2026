@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
-import { getBand } from "@/lib/explore/bands";
+import { BANDS } from "@/lib/explore/bands";
 import {
   clamp,
   frameTransform,
@@ -11,7 +11,7 @@ import {
   type View,
 } from "@/lib/explore/projection";
 import { useStore } from "@/lib/explore/store";
-import type { SkyBox } from "@/lib/explore/types";
+import type { BandId, SkyBox } from "@/lib/explore/types";
 import { BARE_ALADIN_OPTIONS, loadAladin, type AladinInstance } from "@/lib/sky/aladin";
 import { Curtain } from "./curtain";
 import { LayerPicker } from "./layer-picker";
@@ -43,7 +43,7 @@ type Drag =
  */
 export function SkyView() {
   const ex = useExplore();
-  const { area, viewStore, sizeStore, frames, frameVersion, bandsOn, playheadEpoch, layerId, curtain, mode } = ex;
+  const { area, viewStore, sizeStore, frames, frameVersion, bandsOn, playheadEpoch, layerId, curtain, mode, level, levels } = ex;
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const aladinEl = useRef<HTMLDivElement>(null);
@@ -121,8 +121,8 @@ export function SkyView() {
 
   // ---- drawing, one frame at a time, only when something changed
   const raf = useRef(0);
-  const latest = useRef({ view, size, curtainX, layer: !!layer });
-  latest.current = { view, size, curtainX, layer: !!layer };
+  const latest = useRef({ view, size, curtainX, layer: !!layer, level, levels });
+  latest.current = { view, size, curtainX, layer: !!layer, level, levels };
 
   function invalidate() {
     if (raf.current) return;
@@ -133,7 +133,7 @@ export function SkyView() {
   }
 
   function drawNow() {
-    const { view: v, size: s, curtainX: cx } = latest.current;
+    const { view: v, size: s, curtainX: cx, level, levels } = latest.current;
 
     // Aladin follows our view.
     const a = aladinRef.current;
@@ -162,19 +162,27 @@ export function SkyView() {
     g.rect(0, 0, Math.max(0, cx) * dpr, canvas.height);
     g.clip();
     g.imageSmoothingQuality = "high";
-    const [ta, tb, tc, td, te, tf] = frameTransform(area, v, s.w, s.h);
-    g.setTransform(ta * dpr, tb * dpr, tc * dpr, td * dpr, te * dpr, tf * dpr);
-    // Black only where the frames have data, so a small or ragged tile sits on
-    // the Aladin sky around it instead of hiding it.
+    // Each band is drawn from the frame size that suits the zoom, or the nearest one
+    // that has loaded, so zooming never shows a gap while the sharper frame arrives.
+    const order = [...levels].sort((x, y) => Math.abs(x.level - level) - Math.abs(y.level - level)).map((l) => l.level);
+    const chosen: { id: BandId; lv: number }[] = [];
     for (const id of bandsOn) {
-      const shadow = frames.shadowFrame(playheadEpoch.id, id);
-      if (shadow) g.drawImage(shadow, 0, 0);
+      const lv = order.find((l) => frames.isReady(l, playheadEpoch.id, id));
+      if (lv !== undefined) chosen.push({ id, lv });
+    }
+    // SPHEREx is the image: black where it has no data, not the placeholder sky.
+    if (chosen.length) {
+      g.fillStyle = "#000";
+      g.fillRect(0, 0, canvas.width, canvas.height);
     }
     g.globalCompositeOperation = "lighter";
     let any = false;
-    for (const id of bandsOn) {
-      const tinted = frames.tintedFrame(playheadEpoch.id, id, getBand(id).color);
-      if (!tinted) continue;
+    for (const { id, lv } of chosen) {
+      const tinted = frames.tintedFrame(lv, playheadEpoch.id, id, bandColor(id));
+      const l = levels.find((x) => x.level === lv);
+      if (!tinted || !l) continue;
+      const [ta, tb, tc, td, te, tf] = frameTransform({ center: area.center, extentDeg: l.extentDeg, sizePx: l.sizePx }, v, s.w, s.h);
+      g.setTransform(ta * dpr, tb * dpr, tc * dpr, td * dpr, te * dpr, tf * dpr);
       g.drawImage(tinted, 0, 0);
       any = true;
     }
@@ -186,7 +194,7 @@ export function SkyView() {
   useEffect(() => {
     invalidate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, size, curtainX, frameVersion, bandsOn, playheadEpoch?.id, area, frames]);
+  }, [view, size, curtainX, frameVersion, bandsOn, playheadEpoch?.id, area, frames, level]);
 
   // ---- pointer: pan, select, zoom
   const local = (e: { clientX: number; clientY: number }) => {
@@ -320,6 +328,8 @@ export function SkyView() {
     </div>
   );
 }
+
+const bandColor = (id: BandId) => BANDS.find((b) => b.id === id)?.color ?? "#ffffff";
 
 function boxFromCorners(proj: Projection, x0: number, y0: number, x1: number, y1: number): SkyBox {
   const [ra, dec] = proj.toSky((x0 + x1) / 2, (y0 + y1) / 2);

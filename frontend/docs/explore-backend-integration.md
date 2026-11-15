@@ -20,7 +20,7 @@ Open `/explore?q=Barnard%27s%20Star&ra=269.452076&dec=4.693391&fov=0.25`.
 | | Path | Notes |
 | --- | --- | --- |
 | GET | `/explore/area?ra&dec&fov` | Area, epochs, per-band coverage, sensor layers. 404 `{detail:{message,suggestion}}` when SPHEREx hasn't observed the spot; 502 if IRSA is unreachable. |
-| GET | `/explore/areas/{id}/frames/{epoch}/{band}` | Greyscale PNG, 128x128 px at 6.15"/px, north up, east left, transparent where there is no data. |
+| GET | `/explore/areas/{id}/frames/{epoch}/{band}?level=0..2` | Greyscale PNG, north up, east left, transparent where there is no data. Level 0 is 0.22 degrees, 1 is 0.44, 2 is 1.0 (`Area.levels`). The page asks for the smallest level that covers the zoom and draws the nearest loaded one meanwhile. |
 | POST | `/explore/areas/{id}/inspect` | Type guess, ranked candidates, spectrum for a box or mover. |
 | POST | `/explore/areas/{id}/motion` | `{jobId}`. Detects point sources per exposure, links them, keeps shifts over 1.5 px. |
 | POST | `/explore/areas/{id}/verify` | `{jobId}`. Saved target list, SIMBAD, SkyBoT, then an instrument-quality check. |
@@ -53,12 +53,23 @@ Open `/explore?q=Barnard%27s%20Star&ra=269.452076&dec=4.693391&fov=0.25`.
 - Band windows and wavelengths need science-team validation.
 - Points table: `points.ts`.
 
+## Frames follow the zoom, bands follow the observations
+
+- The page is the SPHEREx image: black where there is no data, with the Aladin sky only as
+  the loading placeholder and the curtain's other sensor. The widest frame is about 1 degree,
+  which is also the widest zoom.
+- Bigger levels need bigger cutouts (up to about 12 MB each), downloaded on first use and cached.
+- Observations (timeline points) are those that have **every** band that is on. A band that is
+  never seen in the same observation as the bands already on is disabled, with the reason.
+- The page opens on the observation with the most data (`Epoch.coverage`).
+- Observations are spread over the survey, not the earliest ones, because each exposure only sees
+  a few wavelengths: for Orion this takes the page from 2 usable bands to all 9.
+
 ## Where the data comes from
 
 For any position the backend first looks in the saved cache (`data/`, Barnard's
 Star only), and otherwise fetches **live from NASA/IPAC (IRSA)**
-(`backend/app/explore/sources.py`): one SIA search per collection, the earliest 10
-observations, and a small native cutout per detector. Cutouts are cached in
+(`backend/app/explore/sources.py`): one SIA search per collection, 18 observations spread over time, and a small native cutout per detector. Cutouts are cached in
 `backend/.cache/cutouts/`, so the first visit to a spot takes about 10 to 40 seconds
 and every later one is instant. Needs internet (IRSA); TLS uses the system trust
 store (`truststore`), because some Python installs reject IRSA's certificate.

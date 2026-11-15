@@ -8,7 +8,7 @@ from astropy.coordinates import SkyCoord
 from PIL import Image
 
 from ..local_store import list_targets
-from .common import (BAND_LABELS, BAND_WINDOWS, EXTENT_DEG, PIXEL_SCALE, SIZE_PX, aligned, area_id,
+from .common import (BAND_LABELS, BAND_WINDOWS, EXTENT_DEG, LEVELS, PIXEL_SCALE, SIZE_PX, aligned, area_id,
                      epochs_at, mjd_to_iso, shot_for, shots_at)
 
 IRSA = "https://irsa.ipac.caltech.edu/data/hips/CDS"
@@ -68,14 +68,25 @@ def build_area(ra: float, dec: float):
         "sizePx": SIZE_PX,
         "pixelScaleArcsec": PIXEL_SCALE,
         # `bands`: which rows have an image for this observation, so the page can skip empty ones.
-        "epochs": [{"id": e, "date": mjd_to_iso(m), "bands": [b for b in BAND_WINDOWS if shot_for(ra, dec, e, b)]}
-                   for e, m in epochs],
+        "epochs": [{"id": e, "date": mjd_to_iso(m), "bands": [b for b in BAND_WINDOWS if shot_for(ra, dec, e, b)],
+                    "coverage": _coverage(ra, dec, e)} for e, m in epochs],
         "bands": bands,
         # The frames are a small tile; let people zoom out to the sky around it.
-        "minFovDeg": EXTENT_DEG * 0.5,
-        "maxFovDeg": 1.5,
+        "levels": [{k: l[k] for k in ("level", "extentDeg", "sizePx", "pixelScaleArcsec")} for l in LEVELS],
+        "minFovDeg": EXTENT_DEG * 0.3,
+        "maxFovDeg": LEVELS[-1]["extentDeg"] * 0.98,  # the widest frame fills the view
         "layers": _layers(),
     }
+
+
+def _coverage(ra: float, dec: float, epoch_id: str) -> float:
+    """How much of the smallest frame has data in this observation (the best of its exposures)."""
+    best = 0.0
+    for s in shots_at(ra, dec):
+        if s.epoch_id == epoch_id:
+            a = aligned(str(s.path), ra, dec)
+            best = max(best, float(np.isfinite(a).mean()))
+    return round(best, 3)
 
 
 def _is_empty(ra, dec, band) -> bool:
@@ -106,17 +117,18 @@ def _stretch(ra: float, dec: float, band: str) -> tuple[float, float]:
             values.append(a[np.isfinite(a)])
     if not values:
         return 0.0, 1.0
-    low, high = np.percentile(np.concatenate(values), [1, 99.7])
+    # Background (the median, after subtraction) maps to black so stars stand out.
+    low, high = np.percentile(np.concatenate(values), [50, 99.8])
     return float(low), float(max(high, low + 1e-9))
 
 
-def frame_png(ra: float, dec: float, epoch_id: str, band: str) -> bytes:
+def frame_png(ra: float, dec: float, epoch_id: str, band: str, level: int = 0, path=None) -> bytes:
     """North up, east left, transparent where there is no data (see the page's contract)."""
     s = shot_for(ra, dec, epoch_id, band)
+    size = LEVELS[level]["sizePx"]
     if s is None:
-        blank = np.zeros((SIZE_PX, SIZE_PX, 4), dtype=np.uint8)
-        return _encode(blank)
-    a = aligned(str(s.path), ra, dec)
+        return _encode(np.zeros((size, size, 4), dtype=np.uint8))
+    a = aligned(str(path or s.path), ra, dec, level)
     low, high = _stretch(ra, dec, band)
     norm = np.clip((np.nan_to_num(a) - low) / (high - low), 0, 1)
     gray = 255 * np.arcsinh(10 * norm) / np.arcsinh(10)

@@ -73,9 +73,9 @@ export const httpExploreApi: ExploreApi = {
     }
   },
 
-  fetchFrame: ({ areaId, epochId, band }, opts) =>
+  fetchFrame: ({ areaId, epochId, band, level = 0 }, opts) =>
     apiBlob(
-      `/explore/areas/${encodeURIComponent(areaId)}/frames/${encodeURIComponent(epochId)}/${band}`,
+      `/explore/areas/${encodeURIComponent(areaId)}/frames/${encodeURIComponent(epochId)}/${band}?level=${level}`,
       { signal: opts?.signal },
     ),
 
