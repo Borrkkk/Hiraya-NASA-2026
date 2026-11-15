@@ -75,7 +75,7 @@ def test_all_masked_exposures_yield_honest_404_not_server_error(fake_cutouts):
     with TestClient(app) as client:
         response = client.get("/explore/area", params={"ra": ra, "dec": dec})
     assert response.status_code == 404
-    assert "hasn't observed" in response.json()["detail"]["message"]
+    assert "no usable image pixels" in response.json()["detail"]["message"]
 
 
 def test_shot_for_prefers_usable_detector_when_other_is_masked(fake_cutouts):
