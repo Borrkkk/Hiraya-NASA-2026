@@ -18,7 +18,7 @@ from starlette.concurrency import run_in_threadpool
 from . import jobs
 from .analysis import MOTION_LEVEL, find_movers, inspect, motion_shots, pick_level, pick_shots
 from ..archive import ArchiveError
-from .common import BAND_WINDOWS, LEVELS, key, parse_area_id, shot_for
+from .common import BAND_WINDOWS, LEVELS, key, parse_area_id, shot_for, shots_at
 from .sources import ensure_cutout, ensure_cutouts, ensure_shots
 from .frames import build_area, frame_png, sample_suggestion
 from .search import search
@@ -86,9 +86,10 @@ async def get_area(request: Request, ra: float, dec: float, fov: float | None = 
     await _ready(request.app.state.client, ra, dec)
     area = await run_in_threadpool(build_area, ra, dec)
     if area is None:
+        message = ("SPHEREx has observations here, but no usable image pixels after masking."
+                   if shots_at(ra, dec) else "SPHEREx hasn't observed this spot yet.")
         raise HTTPException(404, detail={
-            "message": "SPHEREx hasn't observed this spot yet.",
-            "suggestion": sample_suggestion()})
+            "message": message, "suggestion": sample_suggestion()})
     return area
 
 
