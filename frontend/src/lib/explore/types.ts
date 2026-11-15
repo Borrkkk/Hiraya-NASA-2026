@@ -214,6 +214,14 @@ export type MotionResult = {
   movers: Mover[];
   /** The epochs the analysis covered, so the page can tell if the range changed. */
   epochs: string[];
+  /** Why real-data analysis returned no candidates. Absent from mock results. */
+  diagnostics?: {
+    reason: "insufficient_comparable_observations" | "no_sources_detected" | "no_consistent_tracks" | "candidates_found";
+    comparableObservations: number;
+    requiredObservations: number;
+    /** Number of source detections across the comparable frames (not unique stars). */
+    detectedSources: number;
+  };
 };
 
 // ---------------------------------------------------------------- verify
