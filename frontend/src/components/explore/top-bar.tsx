@@ -4,6 +4,7 @@ import { ArrowLeft, Check, Link2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Logo } from "@/components/ui";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { formatCoords } from "@/lib/sky/format";
 import { useExplore } from "./use-explore";
 
@@ -48,6 +49,7 @@ export function TopBar() {
         {copied ? <Check size={16} strokeWidth={1.5} aria-hidden="true" /> : <Link2 size={16} strokeWidth={1.5} aria-hidden="true" />}
         {copied ? "Link copied" : "Copy link"}
       </button>
+      <ThemeToggle />
     </header>
   );
 }

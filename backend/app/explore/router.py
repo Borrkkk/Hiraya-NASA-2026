@@ -116,6 +116,9 @@ async def post_inspect(area_id: str, body: InspectBody, request: Request):
     level = pick_level(ra, dec, target["box"])
     shots = pick_shots(ra, dec, body.epoch, body.bands, level)
     await _fetch(request, shots, ra, dec, level)
+    engine = getattr(request.app.state, "explore_science", None)
+    if engine is not None:
+        return await engine.inspect(ra, dec, target, body.epoch, level, shots)
     return await run_in_threadpool(inspect, ra, dec, target, body.epoch, level, shots)
 
 
@@ -143,6 +146,9 @@ async def post_verify(area_id: str, body: VerifyBody, request: Request):
 
     async def work(step):
         await ensure_cutouts(request.app.state.client, shots, ra, dec, level)
+        engine = getattr(request.app.state, "explore_science", None)
+        if engine is not None:
+            return await engine.verify(ra, dec, target, body.epoch, step, level, shots)
         return await verify(request.app.state.client, ra, dec, target, body.epoch, step, level, shots)
 
     return {"jobId": jobs.start(work)}

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
+import "./themes.css";
 
 // Instrument Sans for everything people read; IBM Plex Mono for anything measured.
 const instrumentSans = Instrument_Sans({
@@ -30,8 +31,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${instrumentSans.variable} ${plexMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `try{document.documentElement.dataset.theme=localStorage.getItem("pulsr:theme")==="light"?"light":"dark"}catch{document.documentElement.dataset.theme="dark"}` }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
       </body>

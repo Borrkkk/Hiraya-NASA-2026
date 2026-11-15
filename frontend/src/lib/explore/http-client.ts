@@ -10,7 +10,7 @@ import type {
 } from "./types";
 
 /**
- * The real backend client (backend/app/explore). It is the only file that knows
+ * The real unified API client (api.app:app). It is the only file that knows
  * the URLs; the shapes are in types.ts.
  *
  * Browser calls go to same-origin /api/*, which next.config.ts proxies to

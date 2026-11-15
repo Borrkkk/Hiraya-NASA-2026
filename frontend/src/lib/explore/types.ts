@@ -169,6 +169,17 @@ export type Spectrum = {
 export type TypeScore = { type: ObjectType; confidence: number };
 
 export type Inspection = {
+  /** Present when the unified API uses spherex_inspect point-source measurements. */
+  evidence?: {
+    engine: string;
+    measurement: string;
+    nFrames: number;
+    nDetected: number;
+    nUsable: number;
+    nFailed: number;
+    warnings: string[];
+    flags: Record<string, number>;
+  };
   /** True if there isn't enough signal to say anything. The guess is then "empty". */
   lowSignal: boolean;
   /** Best guess. `reason` must come from computed facts, not from a model score. */

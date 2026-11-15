@@ -56,7 +56,16 @@ export function ObjectPanel() {
             <p className="text-body-sm text-ink-secondary">{q.data.guess.reason}</p>
           </div>
 
-          <div className="flex flex-col gap-2">
+          {q.data.evidence && <section className="rounded-md border border-line bg-surface p-3" aria-label="Measurement quality">
+            <p className="text-small font-medium text-ink">Measurement quality</p>
+            <p className="mt-1 text-caption text-ink-secondary">{q.data.evidence.measurement}</p>
+            <p className="mt-2 font-mono text-mono-sm text-ink-secondary">{q.data.evidence.nUsable} usable / {q.data.evidence.nFrames} frames · {q.data.evidence.nDetected} detections</p>
+            {q.data.evidence.nFailed > 0 && <p className="mt-1 text-caption text-ember">{q.data.evidence.nFailed} frames could not be measured.</p>}
+            {Object.keys(q.data.evidence.flags).length > 0 && <p className="mt-1 break-words text-caption text-ink-secondary">Flags: {Object.keys(q.data.evidence.flags).join(", ")}</p>}
+            {q.data.evidence.warnings.map((warning, i) => <p key={i} className="mt-2 text-caption text-ink-secondary">{warning}</p>)}
+          </section>}
+
+          {q.data.candidates.length > 0 && <div className="flex flex-col gap-2">
             <button
               type="button"
               aria-expanded={more}
@@ -80,7 +89,7 @@ export function ObjectPanel() {
                 ))}
               </ul>
             )}
-          </div>
+          </div>}
 
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
@@ -112,7 +121,9 @@ export function ObjectPanel() {
               <SpectrumChart spectrum={q.data.spectrum} />
             )}
             <Reveal label="What am I looking at?">
-              Each point is how bright your box is at one colour of infrared light, from short wavelengths on the left to long on the right. Dips and bumps are fingerprints: gases and ices take light in or give it out at set wavelengths.
+              {q.data.evidence
+                ? "Each point measures a source near the centre of your selection at a wavelength, in Jy. Flagged flux measurements are excluded from this chart. A wavelength sample alone does not confirm a gas or ice feature."
+                : "Each point is how bright your box is at one colour of infrared light, from short wavelengths on the left to long on the right. Dips and bumps are fingerprints: gases and ices take light in or give it out at set wavelengths."}
             </Reveal>
           </div>
         </div>
