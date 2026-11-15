@@ -152,16 +152,36 @@ def epochs_at(ra: float, dec: float) -> list[tuple[str, float]]:
 
 
 def shot_for(ra: float, dec: float, epoch_id: str, band: str) -> Shot | None:
-    for s in shots_at(ra, dec):
-        if s.epoch_id == epoch_id and in_band(band, s.wavelength):
-            return s
-    return None
+    """Prefer a usable detector image when several cover the same band and epoch."""
+    candidates = [s for s in shots_at(ra, dec)
+                  if s.epoch_id == epoch_id and in_band(band, s.wavelength)]
+    for shot in candidates:
+        if has_usable_pixels(shot, ra, dec):
+            return shot
+    # Keep the metadata available when every candidate is masked. The PNG
+    # renderer then produces an explicitly transparent no-data image.
+    return candidates[0] if candidates else None
 
 
 @lru_cache(maxsize=160)
 def aligned(path: str, ra: float, dec: float, level: int = 0) -> np.ndarray:
-    """The exposure on a level's grid: background removed, NaN where there is no data."""
-    return align(Path(path).read_bytes(), grid_request(ra, dec, level))
+    """Explore grid; a completely masked exposure is an all-NaN frame, not a crash.
+
+    Keep other FITS/WCS errors visible: those could indicate a real code problem.
+    The science aligner deliberately raises when every pixel is masked.
+    """
+    req = grid_request(ra, dec, level)
+    try:
+        return align(Path(path).read_bytes(), req)
+    except ValueError as exc:
+        if str(exc) != "No usable pixels cover this position after masking":
+            raise
+        return np.full((req.size_px, req.size_px), np.nan, dtype=float)
+
+
+def has_usable_pixels(shot: Shot, ra: float, dec: float) -> bool:
+    """Whether a level-0 cutout contains any usable pixels after SPHEREx masking."""
+    return bool(np.isfinite(aligned(str(shot.path), ra, dec)).any())
 
 
 def grid_wcs(ra: float, dec: float, level: int = 0):
