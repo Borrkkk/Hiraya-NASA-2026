@@ -191,62 +191,152 @@ def detect_sources(a: np.ndarray) -> list[tuple[float, float, float]]:
     return out
 
 
-MOTION_LEVEL = 1  # 0.44 degrees: wide enough to follow things that move
+MOTION_LEVEL = 1  # 0.44 degrees; enough sky for a small apparent shift
+# Conservative first-pass candidate tracking, NOT confirmed proper-motion science.
+# These are pixel-space safety gates, not calibrated astrometric uncertainties.
+MOTION_MIN_DETECTIONS = 3
+MOTION_MIN_BASELINE_HOURS = 1.0
+MOTION_MIN_SHIFT_PX = 3.5
+MOTION_MAX_RESIDUAL_PX = 1.0
+MOTION_CENTROID_FLOOR_PX = 0.75
+MOTION_MIN_SIGNIFICANCE = 4.0
+MOTION_WAVELENGTH_TOL_UM = 0.025
 
 
 def motion_shots(ra: float, dec: float, epoch_ids: list[str], bands: list[str]) -> list[Shot]:
-    """The exposure used for each epoch: the first selected band that has one, else any."""
-    out = []
-    for e in epoch_ids:
-        shot = next((shot_for(ra, dec, e, b) for b in bands if shot_for(ra, dec, e, b)), None)
-        shot = shot or next((s for s in shots_at(ra, dec) if s.epoch_id == e), None)
-        if shot is not None:
-            out.append(shot)
-    return out
+    """Select a *comparable* series: the same detector and nearly the same wavelength.
+
+    Different SPHEREx detectors/wavelengths can reveal unrelated-looking sources.
+    Never silently fall back to a different band just to fill a timeline slot.
+    """
+    requested = set(epoch_ids)
+    available = [s for s in shots_at(ra, dec) if s.epoch_id in requested
+                 and (not bands or any(in_band(b, s.wavelength) for b in bands))]
+    if not available:
+        return []
+    # Try each observed wavelength as an anchor instead of rounding into bins
+    # (which would split near-identical wavelengths at a bin boundary).
+    candidates = []
+    for anchor in available:
+        group = [s for s in available if s.detector == anchor.detector
+                 and abs(s.wavelength - anchor.wavelength) <= MOTION_WAVELENGTH_TOL_UM]
+        by_epoch: dict[str, Shot] = {}
+        for s in sorted(group, key=lambda s: abs(s.wavelength - anchor.wavelength)):
+            by_epoch.setdefault(s.epoch_id, s)
+        chosen = sorted(by_epoch.values(), key=lambda s: s.mjd)
+        baseline = chosen[-1].mjd - chosen[0].mjd if len(chosen) > 1 else 0.0
+        candidates.append((len(chosen), baseline, chosen))
+    return max(candidates, key=lambda c: (c[0], c[1]))[2]
+
+
+def _track_candidate(track: list[tuple[str, float, float, float]]) -> dict | None:
+    """Validate linear movement using 3+ independent positions.
+
+    Measurements without known centroid errors use a conservative 0.75-pixel
+    error floor; this is screening evidence, NOT a measured confidence interval.
+    """
+    if len(track) < MOTION_MIN_DETECTIONS:
+        return None
+    t = np.array([p[1] for p in track], dtype=float)
+    xy = np.array([(p[2], p[3]) for p in track], dtype=float)
+    hours = (t[-1] - t[0]) * 24.0
+    if hours < MOTION_MIN_BASELINE_HOURS or len(set(t)) < MOTION_MIN_DETECTIONS:
+        return None
+    t = (t - t.mean()) * 24.0
+    denom = float(np.dot(t, t))
+    if denom <= 0:
+        return None
+    velocity = (t[:, None] * (xy - xy.mean(axis=0))).sum(axis=0) / denom
+    fitted = xy.mean(axis=0) + t[:, None] * velocity
+    residuals = np.linalg.norm(xy - fitted, axis=1)
+    if float(residuals.max()) > MOTION_MAX_RESIDUAL_PX:
+        return None
+    displacement = float(np.linalg.norm(velocity) * hours)
+    if displacement < MOTION_MIN_SHIFT_PX:
+        return None
+    # Require motion significantly larger than the assumed position-error floor.
+    sigma_velocity = MOTION_CENTROID_FLOOR_PX / np.sqrt(denom)
+    significance = float(np.linalg.norm(velocity) / sigma_velocity)
+    if significance < MOTION_MIN_SIGNIFICANCE:
+        return None
+    return {"displacementPx": displacement, "fitResidualPx": float(residuals.max()),
+            "screeningSignificance": significance}
+
+
+def link_motion_candidates(
+    sources: list[tuple[str, float, list[tuple[float, float, float]]]],
+) -> list[list[tuple[str, float, float, float]]]:
+    """Conservatively link centroids; one source can belong to only one track.
+
+    Seed on two epochs, predict subsequent locations from constant velocity,
+    and reject a candidate when an observation is inconsistent or ambiguous.
+    """
+    if len(sources) < MOTION_MIN_DETECTIONS:
+        return []
+    first_epoch, first_mjd, first_found = sources[0]
+    tracks = [[(first_epoch, first_mjd, x, y)] for x, y, _ in first_found]
+    for epoch, mjd, found in sources[1:]:
+        free = list(found)
+        # Longer, already-confirmed tracks get priority over one-point seeds.
+        for track in sorted(tracks, key=len, reverse=True):
+            _, last_mjd, x_last, y_last = track[-1]
+            if len(track) > 1 and last_mjd != track[-2][1]:
+                prev = track[-2]
+                dt = (mjd - last_mjd) / (last_mjd - prev[1])
+                predicted = (x_last + (x_last - prev[2]) * dt,
+                             y_last + (y_last - prev[3]) * dt)
+            else:
+                predicted = (x_last, y_last)
+            ranked = sorted(
+                ((hypot(x - predicted[0], y - predicted[1]), (x, y, peak))
+                 for x, y, peak in free),
+                key=lambda z: z[0],
+            )
+            if not ranked or ranked[0][0] > LINK_RADIUS_PX:
+                continue
+            # With two or more points, prediction must be tight. Two possible
+            # counterparts at similar distances are too ambiguous to trust.
+            tolerance = MOTION_MAX_RESIDUAL_PX * (2.0 if len(track) == 2 else 1.5)
+            if len(track) >= 2 and ranked[0][0] > tolerance:
+                continue
+            if len(ranked) > 1 and ranked[1][0] - ranked[0][0] < MOTION_CENTROID_FLOOR_PX:
+                continue
+            chosen = ranked[0][1]
+            track.append((epoch, mjd, chosen[0], chosen[1]))
+            free.remove(chosen)
+    # Reject any non-linear or insignificantly moving track.
+    return [track for track in tracks if _track_candidate(track) is not None]
 
 
 def find_movers(area: str, ra: float, dec: float, epoch_ids: list[str], bands: list[str], step=lambda msg: None) -> dict:
     wcs = grid_wcs(ra, dec, MOTION_LEVEL)
-    epochs = {e: m for e, m in epochs_at(ra, dec)}
-    chosen = [e for e in sorted(epoch_ids, key=lambda e: epochs.get(e, 0)) if e in epochs]
-    step("Lining up the frames…")
-    frames = [(s.epoch_id, epochs[s.epoch_id], aligned(str(cutout_path(s, ra, dec, MOTION_LEVEL)), ra, dec, MOTION_LEVEL))
-              for s in motion_shots(ra, dec, chosen, bands)]
-    step("Matching stars between frames…")
+    shots = motion_shots(ra, dec, epoch_ids, bands)
+    step("Lining up comparable frames…")
+    if len(shots) < MOTION_MIN_DETECTIONS:
+        return {"movers": [], "epochs": epoch_ids}
+    frames = [(s.epoch_id, s.mjd, aligned(str(cutout_path(s, ra, dec, MOTION_LEVEL)), ra, dec, MOTION_LEVEL))
+              for s in shots]
+    step("Detecting sources in each frame…")
     sources = [(e, m, detect_sources(a)) for e, m, a in frames]
-    step("Looking for things that shifted…")
-    tracks: list[list[tuple[str, float, float, float]]] = []
-    if sources:
-        tracks = [[(sources[0][0], sources[0][1], x, y)] for x, y, _ in sources[0][2]]
-    for e, m, found in sources[1:]:
-        free = list(found)
-        for track in tracks:
-            _, _, lx, ly = track[-1]
-            best = min(free, key=lambda s: hypot(s[0] - lx, s[1] - ly), default=None)
-            if best is not None and hypot(best[0] - lx, best[1] - ly) <= LINK_RADIUS_PX:
-                track.append((e, m, best[0], best[1]))
-                free.remove(best)
-    step("Joining the dots into tracks…")
+    step("Checking candidate tracks across at least three observations…")
+    tracks = link_motion_candidates(sources)
+    step("Rejecting inconsistent movement…")
     movers = []
     for track in tracks:
-        if len(track) < 2:
-            continue  # seen in one frame only: not a mover (it can still be boxed)
-        shift = max(hypot(p[2] - q[2], p[3] - q[3]) for p in track for q in track)
-        if shift < MOVER_MIN_SHIFT_PX:
-            continue
         pts = []
         for e, m, x, y in track:
             r, d = wcs.all_pix2world(x, y, 0)
             pts.append({"epochId": e, "date": mjd_to_iso(m), "ra": float(r), "dec": float(d)})
-        a0, a1 = SkyCoord(pts[0]["ra"] * u.deg, pts[0]["dec"] * u.deg), SkyCoord(pts[-1]["ra"] * u.deg, pts[-1]["dec"] * u.deg)
-        hours = max((track[-1][1] - track[0][1]) * 24, 1e-6)
+        a0 = SkyCoord(pts[0]["ra"] * u.deg, pts[0]["dec"] * u.deg)
+        a1 = SkyCoord(pts[-1]["ra"] * u.deg, pts[-1]["dec"] * u.deg)
+        hours = (track[-1][1] - track[0][1]) * 24.0
         movers.append({
             "points": pts,
             "speedArcsecPerHour": float(a0.separation(a1).arcsec / hours),
             "positionAngleDeg": float(a0.position_angle(a1).deg),
         })
     movers.sort(key=lambda m: -m["speedArcsecPerHour"])
-    for i, m in enumerate(movers, 1):
-        m["id"], m["number"] = f"m{i}", i
-        MOVERS[(area, m["id"])] = m
+    for i, mover in enumerate(movers, 1):
+        mover["id"], mover["number"] = f"m{i}", i
+        MOVERS[(area, mover["id"])] = mover
     return {"movers": movers, "epochs": epoch_ids}

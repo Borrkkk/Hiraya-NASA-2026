@@ -5,7 +5,7 @@ import type { Projection } from "@/lib/explore/projection";
 import type { Mover } from "@/lib/explore/types";
 import { useExplore } from "./use-explore";
 
-/** Where a mover is at a moment, interpolated between its epochs. */
+/** Estimated position between observations (not a measured position). */
 function positionAt(m: Mover, time: number) {
   const pts = m.points;
   const t = (i: number) => Date.parse(pts[i].date);
@@ -55,7 +55,7 @@ export function MotionOverlay({ proj }: { proj: Projection }) {
                 {m.number}
               </text>
             </g>
-            {/* The marker rides the line with the playhead. */}
+            {/* This animated position is interpolated; only dots at measured epochs are observations. */}
             <g
               style={{
                 transform: `translate(${mx}px, ${my}px)`,

@@ -28,7 +28,7 @@ Open `/explore?q=Barnard%27s%20Star&ra=269.452076&dec=4.693391&fov=0.25`.
 | GET | `/explore/area?ra&dec&fov` | Area, epochs, per-band coverage, sensor layers. 404 `{detail:{message,suggestion}}` when SPHEREx hasn't observed the spot; 502 if IRSA is unreachable. |
 | GET | `/explore/areas/{id}/frames/{epoch}/{band}?level=0..2` | Greyscale PNG, north up, east left, transparent where there is no data. Level 0 is 0.22 degrees, 1 is 0.44, 2 is 1.0 (`Area.levels`). The page asks for the smallest level that covers the zoom and draws the nearest loaded one meanwhile. |
 | POST | `/explore/areas/{id}/inspect` | Morphology-based guess, point-source spectrum in Jy, quality evidence, and full `science` response. No invented confidence percentages. |
-| POST | `/explore/areas/{id}/motion` | `{jobId}`. Detects point sources per exposure, links them, keeps shifts over 1.5 px. |
+| POST | `/explore/areas/{id}/motion` | `{jobId}`. Screens for motion candidates from 3+ comparable exposures (same detector and near-matching wavelength), requires a time baseline, consistent linear shift and conservative pixel-space significance. Not calibrated astrometric confirmation. |
 | POST | `/explore/areas/{id}/verify` | `{jobId}`. `spherex_inspect` measurements and epoch-aware catalog matching. Inconclusive / unavailable checks remain unexplained. |
 | GET | `/explore/jobs/{id}` | `{status, step?, result?, message?}`; `step` is shown to the user. |
 | GET | `/explore/search?q=` | Saved SPHEREx targets (images first), plus SIMBAD names when online. Used by the home search. |
@@ -110,3 +110,19 @@ ones when playing, and marks them on the timeline.
 
 Entry point only: the draft is stored in `sessionStorage` (`lib/explore/share.ts`)
 and the page goes to a placeholder `/share`.
+
+## Motion candidate safety
+
+- Three or more detections at distinct times are required. The current detector uses
+  a 0.75-pixel assumed centroid-error floor, a >=3.5-pixel fitted displacement,
+  a >=4-sigma *screening* threshold and <=1-pixel maximum fit residual. These
+  are conservative engineering filters, not calibrated scientific uncertainties.
+- Frames must come from the same detector and within 0.025 micrometres of an
+  anchor wavelength. Not enough comparable observations means no candidate.
+- Tracks are still not independently confirmed by sky ephemerides. Inspect/Verify
+  checks the selected point; it explicitly withholds motion-track verification.
+- Animated markers between recorded dates show **interpolation**, not additional
+  observations. Do not call candidates discoveries.
+- Robust field-wide astrometry, crowded-field matching, uncertainty propagation,
+  ephemeris-based validation and per-target cross-epoch source association remain
+  future scientific work.

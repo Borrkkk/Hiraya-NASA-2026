@@ -13,7 +13,7 @@ export function MotionPanel() {
 
   return (
     <div className="flex flex-col gap-4">
-      <ol className="flex flex-col" aria-label="Movers found">
+      <ol className="flex flex-col" aria-label="Motion candidates">
         {ex.movers.map((x) => {
           const selected = x.id === ex.moverId;
           return (
@@ -41,6 +41,7 @@ export function MotionPanel() {
 
       {m && (
         <div className="flex flex-col gap-4">
+          <p className="text-small text-ink-secondary">Candidate only: this track has not been independently verified against known objects at every observation date.</p>
           <div className="flex flex-col gap-1">
             <p className="text-small text-ink-secondary">Speed</p>
             <p className="text-body text-ink">It moves {speedPlain(m.speedArcsecPerHour)}.</p>
@@ -67,7 +68,7 @@ export function MotionPanel() {
             <p className="text-small text-ink-secondary">What this suggests</p>
             <p className="text-body-sm text-ink">{suggestion(m)}</p>
             <p className="text-small text-ink-secondary">
-              A hint, not a result. Based on {m.points.length} observations.
+              A clue, not a confirmed result. Based on {m.points.length} comparable observations.
             </p>
           </div>
         </div>
