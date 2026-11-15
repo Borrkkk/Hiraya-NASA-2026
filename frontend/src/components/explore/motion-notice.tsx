@@ -20,7 +20,7 @@ export function MotionNotice() {
           <Loader2 size={16} strokeWidth={1.5} className="animate-spin" aria-hidden="true" />
           {motion.step}
         </p>
-        <p className="text-ink-secondary">Looking for anything that moved between observations. This takes a moment.</p>
+        <p className="text-ink-secondary">Screening comparable observations for possible motion. Candidate paths need independent verification.</p>
       </Notice>
     );
   if (motion.status === "failed")
@@ -45,8 +45,8 @@ export function MotionNotice() {
   if (motion.status === "done" && motion.result.movers.length === 0)
     return (
       <Notice>
-        <p className="text-body-sm font-medium">No movement found in this period</p>
-        <p className="text-ink-secondary">Try a longer range, or switch on other bands.</p>
+        <p className="text-body-sm font-medium">No reliable motion candidates in this period</p>
+        <p className="text-ink-secondary">At least three comparable observations are needed. Try a longer date range or a different band.</p>
       </Notice>
     );
   return null;
