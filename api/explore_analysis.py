@@ -117,6 +117,20 @@ async def verify(ra, dec, target, epoch, step, level, shots):
         return {"outcome": "unexplained", "headline": "Not enough source evidence to verify this selection",
                 "nearMatch": {"name": "No reliable detection", "source": "SPHEREx measurements",
                               "note": "Try centring the selection on a source. No detection is not evidence of an artifact."}, **extra}
+    # Field-wide tracks are created by the Explore detector, not the point-source
+    # science fit. Identifying a source at one location does NOT verify every
+    # position of that track. Withhold any confirmed verdict until an epoch-by-
+    # epoch trajectory comparison is implemented.
+    if target.get("kind") == "mover":
+        return {"outcome": "unexplained",
+                "headline": "Motion candidate — track not yet verified",
+                "nearMatch": {
+                    "name": "Track verification unavailable",
+                    "source": "SPHEREx point inspection",
+                    "note": "A source match at one position does not confirm a moving path. "
+                            "This candidate needs independent positions and catalog ephemerides "
+                            "checked at every observation date."
+                }, **extra}
     if context and context.verdict == "matched" and context.best_match:
         match = context.best_match
         kind = OBJECT_TYPES.get(match.object_class)
