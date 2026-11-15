@@ -83,7 +83,7 @@ export function VerifyPanel() {
             </p>
             {v.result.nearMatch && (
               <div className="flex flex-col gap-1 rounded-lg bg-raised p-4">
-                <p className="text-small text-ink-secondary">Closest match, but it doesn&apos;t fit</p>
+                <p className="text-small text-ink-secondary">Verification details</p>
                 <p className="text-body-sm text-ink">{v.result.nearMatch.name}</p>
                 <p className="text-small text-ink-secondary">
                   {v.result.nearMatch.source}. {v.result.nearMatch.note}
