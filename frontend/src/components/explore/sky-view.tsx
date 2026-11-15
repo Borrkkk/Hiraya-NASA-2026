@@ -19,6 +19,7 @@ import { MotionOverlay } from "./motion-overlay";
 import { SelectionBox } from "./selection-box";
 import { ViewControls, ViewStatus } from "./view-chrome";
 import { useExplore } from "./use-explore";
+import { ObjectMarkers } from './object-markers';
 
 const R2D = 180 / Math.PI;
 
@@ -309,6 +310,7 @@ export function SkyView() {
       {/* 4. overlays */}
       <svg className="pointer-events-none absolute inset-0 z-[3] size-full" width={size.w} height={size.h}>
         <MotionOverlay proj={proj} />
+        <ObjectMarkers key={ex.showDiscussionPosts ? 'discussions-shown' : 'discussions-hidden'} proj={proj} />
         {boxShown && (
           <SelectionBox
             box={boxShown}

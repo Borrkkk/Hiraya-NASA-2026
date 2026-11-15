@@ -130,7 +130,7 @@ export function VerifyPanel() {
             }}
           >
             <Share2 size={16} strokeWidth={1.5} aria-hidden="true" />
-            Share this find
+            Discuss suspected motion
           </button>
         </footer>
       )}

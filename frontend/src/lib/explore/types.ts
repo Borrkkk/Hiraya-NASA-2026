@@ -37,7 +37,7 @@ export type BandId =
 
 export type BandStatus =
   /** Has data for this area and epoch. */
-  | { id: BandId; state: "ok"; empty: boolean }
+  | { id: BandId; state: "ok"; empty: boolean | null }
   /** No coverage: the row is disabled and shows `reason`. */
   | { id: BandId; state: "no-coverage"; reason: string };
 
@@ -160,7 +160,7 @@ export type SpectrumFeature = {
 
 export type Spectrum = {
   /** Sorted by wavelength. SPHEREx covers roughly 0.75 to 5 µm. */
-  points: { wavelengthUm: number; flux: number }[];
+  points: { wavelengthUm: number; flux: number; err?: number }[];
   /** Unit label for the y axis, plain: e.g. "Brightness (relative)". */
   fluxLabel: string;
   features: SpectrumFeature[];

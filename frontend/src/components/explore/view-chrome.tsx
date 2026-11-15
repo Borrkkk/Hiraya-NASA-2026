@@ -1,6 +1,6 @@
 "use client";
 
-import { Database, Move, RefreshCw, SquareDashed } from "lucide-react";
+import { Database, MessageCircle, Move, RefreshCw, SquareDashed } from "lucide-react";
 import Link from "next/link";
 import { exploreHref } from "@/lib/explore/href";
 import { cn } from "@/lib/cn";
@@ -8,18 +8,18 @@ import { useExplore } from "./use-explore";
 
 /** Move / Select box. Shift+drag also draws a box, from either mode. */
 export function ViewControls() {
-  const { mode, setMode, toolsEnabled } = useExplore();
+  const { mode, setMode, toolsEnabled, showDiscussionPosts, setShowDiscussionPosts } = useExplore();
   const options = [
     { value: "move", label: "Move", Icon: Move, hint: "Drag to move the view" },
     { value: "select", label: "Select box", Icon: SquareDashed, hint: "Drag to draw a box. Shift+drag does this from either mode." },
   ] as const;
   return (
     <div
-      role="radiogroup"
-      aria-label="What dragging does"
+      role="toolbar"
+      aria-label="Viewer controls"
       className="absolute left-3 top-3 z-[5] flex gap-1 rounded-lg border border-line-strong bg-ground/90 p-1"
     >
-      {options.map(({ value, label, Icon, hint }) => {
+      <div role="radiogroup" aria-label="What dragging does" className="flex gap-1">{options.map(({ value, label, Icon, hint }) => {
         const selected = mode === value;
         const disabled = value === "select" && !toolsEnabled;
         return (
@@ -41,7 +41,14 @@ export function ViewControls() {
             {label}
           </button>
         );
-      })}
+      })}</div>
+      <button type="button" role="switch" aria-label="Show discussion posts" aria-checked={showDiscussionPosts}
+        title={showDiscussionPosts ? 'Hide discussion pins' : 'Show discussion pins'}
+        onClick={() => setShowDiscussionPosts(!showDiscussionPosts)}
+        className={cn('flex h-9 cursor-pointer items-center gap-2 rounded-md border-l border-line px-3 text-small transition-colors',
+          showDiscussionPosts ? 'bg-overlay text-ink' : 'text-ink-secondary hover:text-ink')}>
+        <MessageCircle size={16} strokeWidth={1.5} aria-hidden="true" /> Discussions
+      </button>
     </div>
   );
 }

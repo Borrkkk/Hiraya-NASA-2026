@@ -23,6 +23,8 @@ import { createStore, type Store } from "@/lib/explore/store";
 import { readParams, writeParams } from "@/lib/explore/url-state";
 import { fovLimits } from "@/lib/explore/fov";
 import { clamp } from "@/lib/explore/projection";
+import { countBandObservations } from "@/lib/explore/observation-counts";
+import { toggleWindow } from '@/lib/explore/window-selection';
 
 export type MotionState =
   | { status: "idle" }
@@ -109,6 +111,7 @@ function useController() {
   const [layerId, setLayerId] = useState<string | null>(params.layer);
   const [curtain, setCurtain] = useState(0.5);
   const [mode, setMode] = useState<"move" | "select">("move");
+  const [showDiscussionPosts, setShowDiscussionPosts] = useState(true);
   const [box, setBoxState] = useState<SkyBox | null>(null);
   const [moverId, setMoverId] = useState<string | null>(null);
   // Each SPHEREx exposure sees a spot at one wavelength, so a spectrum needs them combined.
@@ -166,6 +169,9 @@ function useController() {
     return a >= 0 && b >= 0 ? [Math.min(a, b), Math.max(a, b)] : [0, lastIdx];
   }, [rangeIds, idxOf, lastIdx]);
   const urlIdx = idxOf(params.epoch);
+  const bandCounts = useMemo(() => Object.fromEntries(BANDS.map((band) => [
+    band.id, countBandObservations(everyEpoch, epochs.slice(range[0], range[1] + 1), band.id),
+  ])), [everyEpoch, epochs, range]);
   // Open on the observation with the most data (the latest if they are equal).
   const fullestIdx = useMemo(() => {
     let best = lastIdx;
@@ -199,19 +205,19 @@ function useController() {
   }, [levels, viewStore]);
   const level = useSyncExternalStore(viewStore.subscribe, getLevel, getLevel);
 
-  // Ask for what is on screen first (this frame size, then the small one as a fallback),
-  // then the other observations in the background.
+  // Show a small visible frame before competing downloads. Wider zoom and
+  // timeline frames follow after that preview is ready.
   useEffect(() => {
     if (!frames || !epochs.length) return;
     const others = epochs.map((_, i) => i).filter((i) => i !== playheadIdx).sort((a, b) => Math.abs(a - playheadIdx) - Math.abs(b - playheadIdx));
-    const ask = (i: number, lv: number) => {
-      for (const b of activeBands) if (!epochs[i].bands || epochs[i].bands!.includes(b)) frames.request(lv, epochs[i].id, b);
+    const ask = (i: number, lv: number, priority = false) => {
+      for (const b of activeBands) if (!epochs[i].bands || epochs[i].bands!.includes(b)) frames.request(lv, epochs[i].id, b, priority);
     };
-    ask(playheadIdx, level);
-    if (level > 0) ask(playheadIdx, 0);
+    ask(playheadIdx, 0, true);
+    if (!activeBands.every((b) => frames.isReady(0, epochs[playheadIdx].id, b))) return;
+    if (level > 0) ask(playheadIdx, level, true);
     for (const i of others) ask(i, 0);
-    if (level > 0) for (const i of others) ask(i, level);
-  }, [frames, epochs, playheadIdx, activeBands, level]);
+  }, [frames, epochs, playheadIdx, activeBands, level, frameVersion]);
 
   const epochLoaded = useCallback(
     (i: number) => !!frames && !!epochs[i] && activeBands.every((b) => frames.isReady(0, epochs[i].id, b)),
@@ -397,9 +403,10 @@ function useController() {
         spectrum,
         mover: selectedMover,
         viewUrl: window.location.href,
+          view: area ? { ...area.center, fov: viewStore.get().fov } : undefined,
       });
     },
-    [box, params.q, area, activeBands, epochs, range, selectedMover],
+      [box, params.q, area, activeBands, epochs, range, selectedMover, viewStore],
   );
 
   // ---- keep the URL current, so "Copy link" is the address bar
@@ -442,13 +449,15 @@ function useController() {
 
   const toggleBand = useCallback(
     (id: BandId) => {
-      if (!activeBands.includes(id) && bandBlocked[id]) return;
-      setBandsOn(() => {
-        if (activeBands.includes(id)) return activeBands.length > 1 ? activeBands.filter((b) => b !== id) : activeBands;
-        return [...activeBands, id];
-      });
+        if (bandStatus(id)?.state === 'no-coverage') return;
+        if (!activeBands.includes(id) && bandBlocked[id]) {
+          setRangeIds(null);
+          setPlayheadId(null);
+          setPlaying(false);
+        }
+        setBandsOn(toggleWindow(activeBands, id, !bandBlocked[id]));
     },
-    [activeBands, bandBlocked],
+      [activeBands, bandBlocked, bandStatus],
   );
 
   return {
@@ -487,6 +496,7 @@ function useController() {
     level,
     levels,
     bandBlocked,
+    bandCounts,
     playing: isPlaying,
     canPlay,
     play: () => setPlaying(true),
@@ -497,6 +507,8 @@ function useController() {
     setCurtain,
     mode,
     setMode,
+    showDiscussionPosts,
+    setShowDiscussionPosts,
     // selection
     box,
     setBox,

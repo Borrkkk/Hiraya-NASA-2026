@@ -26,7 +26,6 @@ export function SpectrumChart({ spectrum, compact = false }: { spectrum: Spectru
   const ymax = hi + pad;
   const sx = (w: number) => PAD.l + ((w - x0) / (x1 - x0)) * (W - PAD.l - PAD.r);
   const sy = (f: number) => H - PAD.b - ((f - ymin) / (ymax - ymin)) * (H - PAD.b - PAD.t);
-  const d = pts.map((p, i) => `${i ? "L" : "M"}${sx(p.wavelengthUm).toFixed(1)} ${sy(p.flux).toFixed(1)}`).join(" ");
   const features = [...spectrum.features].sort((a, b) => a.wavelengthUm - b.wavelengthUm);
   // One label chip per kind of feature, even if it shows at several wavelengths.
   const chips = features
@@ -78,10 +77,10 @@ export function SpectrumChart({ spectrum, compact = false }: { spectrum: Spectru
                 strokeDasharray="3 3"
               />
             ))}
-          <path d={d} fill="none" stroke="var(--color-ink)" strokeWidth={1.5} strokeLinejoin="round" />
-          {pts.length <= 12 &&
-            pts.map((p) => (
-              <circle key={p.wavelengthUm} cx={sx(p.wavelengthUm)} cy={sy(p.flux)} r={3.5} fill="var(--color-ground)" stroke="var(--color-ink)" strokeWidth={1.5} />
+          {pts.map((p, index) => (
+              <circle key={`${p.wavelengthUm}-${index}`} cx={sx(p.wavelengthUm)} cy={sy(p.flux)} r={3.5} fill="var(--color-ground)" stroke="var(--color-ink)" strokeWidth={1.5}>
+                <title>{p.wavelengthUm.toFixed(3)} µm: {p.flux.toPrecision(4)}{p.err !== undefined ? ` ± ${p.err.toPrecision(3)}` : ''}</title>
+              </circle>
             ))}
         </svg>
         {hover !== null && features[hover] && (
@@ -94,6 +93,7 @@ export function SpectrumChart({ spectrum, compact = false }: { spectrum: Spectru
         <span>{spectrum.fluxLabel}</span>
         <span>Wavelength (µm)</span>
       </figcaption>
+      {!compact && <p className="text-caption text-ink-secondary">{pts.length} measurements shown. Gaps are colours we have not measured; dots can come from different dates.</p>}
     </figure>
   );
 }

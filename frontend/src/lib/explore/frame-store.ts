@@ -60,11 +60,19 @@ export class FrameStore {
   }
 
   /** Ask for frames. Already requested ones are skipped. Earlier calls go first. */
-  request(level: number, epochId: string, band: BandId) {
+  request(level: number, epochId: string, band: BandId, priority = false) {
     const key = FrameStore.key(level, epochId, band);
-    if (this.frames.has(key)) return;
+    if (this.frames.has(key)) {
+      if (priority) {
+        const index = this.queue.findIndex((job) => job.key === key);
+        if (index > 0) this.queue.unshift(this.queue.splice(index, 1)[0]);
+      }
+      return;
+    }
     this.frames.set(key, { status: "loading" });
-    this.queue.push({ key, level, epochId, band });
+    const job = { key, level, epochId, band };
+    if (priority) this.queue.unshift(job);
+    else this.queue.push(job);
     this.pump();
   }
 

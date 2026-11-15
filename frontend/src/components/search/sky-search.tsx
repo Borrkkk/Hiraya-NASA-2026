@@ -8,7 +8,7 @@ import { Chip } from "@/components/ui";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { exploreHref } from "@/lib/explore/href";
-import { KINDS, kindLabel, searchCatalog, type ObjectKind } from "@/lib/sky/catalog";
+import { CATALOG, KINDS, kindLabel, searchCatalog, type ObjectKind } from "@/lib/sky/catalog";
 import { parseCoordinates } from "@/lib/sky/coordinates";
 import { formatCoords } from "@/lib/sky/format";
 
@@ -90,13 +90,16 @@ export function SkySearch({ className }: { className?: string }) {
       return out;
     }
     for (const h of hits) {
+      // Known recommendations use the same coordinates as their feed cards
+      // and prewarmed demo cache, rather than a second saved target position.
+      const known = CATALOG.find((o) => o.id === h.id || normName(o.name) === normName(h.name));
       out.push({
         key: `hit-${h.id}`,
         primary: h.name,
         secondary: [h.kind, h.images ? "SPHEREx images ready" : h.source === "spherex" ? "Observation records only" : "From SIMBAD"].join(" · "),
         trailing: formatCoords(h.ra, h.dec),
         // The saved images are about a tenth of a degree wide: open with some sky around them.
-        href: exploreHref({ q: h.name, ra: h.ra, dec: h.dec, fov: 0.25 }),
+        href: exploreHref({ q: h.name, ra: known?.ra ?? h.ra, dec: known?.dec ?? h.dec, fov: 0.25 }),
       });
     }
     const taken = new Set(hits.map((h) => normName(h.name)));

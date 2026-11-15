@@ -12,16 +12,17 @@ import { useExplore } from "./use-explore";
  * read from the swatches.
  */
 export function BandPicker() {
-  const { area, bandsOn, toggleBand, toolsEnabled, bandBlocked } = useExplore();
+  const { area, bandsOn, toggleBand, bandBlocked, bandCounts } = useExplore();
   const [open, setOpen] = useState<string | null>(null);
 
   return (
     <section aria-labelledby="bands-title" className="flex min-h-0 w-[280px] shrink-0 flex-col rounded-xl border border-line-strong bg-surface">
       <header className="px-4 pb-2 pt-4">
         <h2 id="bands-title" className="text-body-sm font-medium text-ink">
-          What to look for
+          Wavelength windows
         </h2>
-        <p className="text-small text-ink-secondary">Switch on any mix.</p>
+        <p className="text-small text-ink-secondary">Selected / available observations</p>
+        <p className="mt-1 text-caption text-ink-secondary">Counts cover this area's observation sample. Windows show light near a feature, not a confirmed detection.</p>
       </header>
       <ul className="scroll-pulsr flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2">
         {BANDS.map((b) => {
@@ -33,7 +34,7 @@ export function BandPicker() {
           const blocked = !on && !!bandBlocked[b.id];
           const expanded = open === b.id;
           // One line under the name: the most useful thing for this row right now.
-          const sub = noCoverage && status.state === "no-coverage" ? status.reason : blocked ? bandBlocked[b.id] : empty ? EMPTY_BAND_NOTE : b.looksFor;
+          const sub = noCoverage && status.state === "no-coverage" ? status.reason : blocked ? 'Switch to this window' : empty ? EMPTY_BAND_NOTE : b.looksFor;
           return (
             <li key={b.id} className="flex flex-col">
               <div className="flex items-center rounded-lg transition-colors duration-(--dur-feedback) ease-standard hover:bg-raised">
@@ -41,10 +42,10 @@ export function BandPicker() {
                   type="button"
                   role="switch"
                   aria-checked={on}
-                  disabled={noCoverage || blocked || (!toolsEnabled && !on) || lastOn}
-                  title={lastOn ? "At least one has to stay on" : undefined}
+                  disabled={noCoverage || (!area && !on) || lastOn}
+                  title={lastOn ? "At least one has to stay on" : blocked ? 'Replaces the current windows because no observation contains both' : undefined}
                   onClick={() => toggleBand(b.id)}
-                  className={cn("flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-left disabled:cursor-not-allowed", (noCoverage || blocked) && "opacity-60")}
+                  className={cn("flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-left disabled:cursor-not-allowed", noCoverage && "opacity-60")}
                 >
                   <span
                     aria-hidden="true"
@@ -52,7 +53,14 @@ export function BandPicker() {
                     style={on ? { backgroundColor: b.color } : undefined}
                   />
                   <span className="flex min-w-0 flex-col">
-                    <span className={cn("truncate text-body-sm", on ? "font-medium text-ink" : "text-ink-secondary")}>{b.name}</span>
+                    <span className={cn("flex min-w-0 items-center gap-2 text-body-sm", on ? "font-medium text-ink" : "text-ink-secondary")}>
+                      <span className="truncate">{b.name}</span>
+                      {area && <span className="shrink-0 font-mono text-caption tabular-nums text-ink-secondary"
+                        title={`${bandCounts[b.id]?.selected ?? 0} observations match the selected bands and time range; ${bandCounts[b.id]?.total ?? 0} available in this area's sample`}
+                        aria-label={`${bandCounts[b.id]?.selected ?? 0} selected of ${bandCounts[b.id]?.total ?? 0} available observations`}>
+                        {bandCounts[b.id]?.selected ?? 0}/{bandCounts[b.id]?.total ?? 0}
+                      </span>}
+                    </span>
                     <span className="truncate text-caption text-ink-secondary">{sub}</span>
                   </span>
                 </button>

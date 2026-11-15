@@ -7,9 +7,9 @@ import { Avatar } from "@/components/ui";
 import { addComment, useDiscussion, type DiscussionComment } from "@/lib/discussions";
 import { currentUserId, getProfile, profileHref } from "@/lib/profiles";
 
-export function PostDiscussion({ postId, postTitle }: { postId: string; postTitle: string }) {
+export function PostDiscussion({ postId, postTitle, inline = false }: { postId: string; postTitle: string; inline?: boolean }) {
   const comments = useDiscussion(postId);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(inline);
   const [draft, setDraft] = useState("");
   const [replyTo, setReplyTo] = useState<DiscussionComment | null>(null);
   const [error, setError] = useState("");
@@ -60,6 +60,8 @@ export function PostDiscussion({ postId, postTitle }: { postId: string; postTitl
       </div>
     </div>;
   }
+
+  if (!inline) return <Link href={`/findings/${postId}`} aria-label={`Discussion on ${postTitle}: ${comments.length} comments`} className="relative z-10 mt-4 inline-flex min-h-10 items-center gap-2 border-t border-line pt-3 text-small text-ink-secondary hover:text-ink"><MessageCircle size={16} aria-hidden="true" />Discussion <span className="font-mono">{comments.length}</span></Link>;
 
   return <div className="relative z-10 mt-4 border-t border-line pt-3">
     <button type="button" aria-expanded={open} aria-controls={panelId} aria-label={`Discussion on ${postTitle}: ${comments.length} comments`} onClick={() => setOpen((value) => !value)} className="flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-md text-small text-ink-secondary hover:text-ink">

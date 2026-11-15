@@ -1,11 +1,8 @@
 import type { Inspection, Mover, SkyBox, BandId } from "./types";
 
 /**
- * What "Share this find" hands to the Share flow (built elsewhere): the view,
- * the spectrum, the track and the epochs. The Share flow isn't built yet, so
- * the page links to a placeholder route and parks the payload in
- * sessionStorage under SHARE_KEY. The Share flow can read it from there, or
- * the team can replace `openShare` with a real call.
+ * Carry a selection to the finding composer. Drafts stay in this tab;
+ * submitted findings and discussion are persisted by the backend.
  */
 export type ShareDraft = {
   areaName: string | null;
@@ -15,6 +12,7 @@ export type ShareDraft = {
   spectrum: Inspection["spectrum"] | null;
   mover: Mover | null;
   viewUrl: string;
+  view?: { ra: number; dec: number; fov: number };
 };
 
 export const SHARE_KEY = "pulsr.share-draft";
@@ -23,7 +21,7 @@ export function openShare(draft: ShareDraft): string {
   try {
     sessionStorage.setItem(SHARE_KEY, JSON.stringify(draft));
   } catch {
-    // Storage blocked: the placeholder page still opens.
+    // The composer explains that a draft could not be recovered.
   }
   return "/share";
 }

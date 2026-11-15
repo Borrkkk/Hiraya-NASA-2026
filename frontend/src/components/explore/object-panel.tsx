@@ -51,8 +51,8 @@ export function ObjectPanel() {
       {q.data && (
         <div className={cn("flex flex-col gap-4 transition-opacity duration-(--dur-feedback) ease-standard", waiting && "opacity-60")}>
           <div className="flex flex-col gap-1">
-            <p className="text-small text-ink-secondary">Best guess</p>
-            <p className="text-h3 text-ink">{TYPE_LABELS[q.data.guess.type]}</p>
+            <p className="text-small text-ink-secondary">What the image suggests</p>
+            <p className="text-h3 text-ink">{q.data.guess.type === 'galaxy' ? 'Spread-out light' : TYPE_LABELS[q.data.guess.type]}</p>
             <p className="text-body-sm text-ink-secondary">{q.data.guess.reason}</p>
           </div>
 
@@ -75,29 +75,23 @@ export function ObjectPanel() {
               {more ? "Hide other possibilities" : "Other possibilities"}
             </button>
             {more && (
-              <ul className="flex flex-col gap-2">
+              <><p className="text-caption text-ink-secondary">Rough image-based possibilities, not measured probabilities.</p><ul className="flex flex-col gap-2">
                 {q.data.candidates.map((c) => (
-                  <li key={c.type} className="grid grid-cols-[132px_1fr_40px] items-center gap-3 text-small">
+                  <li key={c.type} className="text-small">
                     <span className="text-ink">{TYPE_LABELS[c.type]}</span>
-                    <span className="h-1.5 overflow-hidden rounded-full bg-raised" aria-hidden="true">
-                      <span className="block h-full rounded-full bg-ink-secondary" style={{ width: `${Math.round(c.confidence * 100)}%` }} />
-                    </span>
-                    <span className="text-right font-mono text-mono-sm tabular-nums text-ink-secondary">
-                      {Math.round(c.confidence * 100)}%
-                    </span>
                   </li>
                 ))}
-              </ul>
+              </ul></>
             )}
           </div>}
 
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-body-sm font-medium text-ink">Infrared spectrum</p>
+              <p className="text-body-sm font-medium text-ink">Brightness by infrared colour</p>
               <div role="radiogroup" aria-label="Which observation" className="flex gap-1 rounded-md border border-line bg-surface p-0.5">
                 {[
                   { v: false, l: "This one" },
-                  { v: true, l: "All combined" },
+                  { v: true, l: "Across dates" },
                 ].map((o) => (
                   <button
                     key={o.l}
@@ -115,6 +109,7 @@ export function ObjectPanel() {
                 ))}
               </div>
             </div>
+            <p className="text-small text-ink-secondary">Each dot is a real brightness measurement at one infrared colour, beyond what our eyes can see. Higher dots mean more light. Left is shorter wavelengths; right is longer.</p>
             {q.data.lowSignal ? (
               <p className="text-small text-ink-secondary">Not enough signal to draw a useful chart.</p>
             ) : (
@@ -122,8 +117,9 @@ export function ObjectPanel() {
             )}
             <Reveal label="What am I looking at?">
               {q.data.evidence
-                ? "Each point measures a source near the centre of your selection at a wavelength, in Jy. Flagged flux measurements are excluded from this chart. A wavelength sample alone does not confirm a gas or ice feature."
-                : "Each point is how bright your box is at one colour of infrared light, from short wavelengths on the left to long on the right. Dips and bumps are fingerprints: gases and ices take light in or give it out at set wavelengths."}
+                ? "The science backend measures a compact source near the centre of your selection, subtracts nearby background light, and estimates uncertainty. It excludes flagged measurements."
+                : "We line up the images on the sky, mask flagged pixels, subtract each frame’s typical background, and average the remaining brightness inside your box. Each observation supplies a dot at its measured infrared wavelength. Stars, gas and dust inside the box can all contribute."}
+              {' '}Empty stretches are unmeasured colours. Across dates combines observations taken at different times, so a changing object can affect the shape. Comparing nearby colours helps show how the light varies with wavelength.
             </Reveal>
           </div>
         </div>
@@ -137,6 +133,7 @@ export function NoSelection() {
     ["Pick what to look for", "Use the list on the left. Start with the defaults."],
     ["Draw a box", "Choose Select box above the image, then drag around something that catches your eye."],
     ["Read the answer", "Here you'll see what it probably is. Then check if it's already known."],
+    ["Discuss a finding", "Compare at least two observations, then share suspected motion. If the region has a discussion, open it and add your evidence."],
   ];
   return (
     <ol className="flex flex-col gap-4">

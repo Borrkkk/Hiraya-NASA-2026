@@ -7,6 +7,7 @@ import { NoSelection, ObjectPanel } from "./object-panel";
 import { Collapsible, buttonPrimary } from "./panel-parts";
 import { VerifyPanel } from "./verify-panel";
 import { useExplore } from "./use-explore";
+import { FindingActions } from './finding-actions';
 
 /**
  * One sidebar for every explanation and result. What it shows follows what
@@ -62,6 +63,7 @@ export function Sidebar() {
           )}
         </>
       )}
+      <FindingActions />
     </aside>
   );
 }
