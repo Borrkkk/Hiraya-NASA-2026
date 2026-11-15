@@ -171,3 +171,19 @@ The Explore page separates the location of the **loaded SPHEREx data**
 
 Backend cutouts only cover a small field around their requested centre. Moving
 a view without requesting another area cannot produce new SPHEREx imagery.
+
+## Fully masked observations (no usable pixels)
+
+Some real SPHEREx FITS cutouts contain no usable pixels at a requested sky
+position after the instrument's quality masks are applied. The underlying
+science aligner raises a `ValueError` for this condition. Explore converts
+**only this specific condition** into an all-NaN frame so the interface can
+handle it as missing data, without hiding other FITS or WCS errors.
+
+- Unusable exposures do not count as available dates, bands or motion evidence.
+- A masked frame endpoint returns a transparent PNG instead of a server error.
+- When every local/remote exposure at a spot is unusable, `/explore/area`
+  returns the normal 404 no-data response with a truthful explanation and
+  suggested alternative target, rather than crashing.
+- If a larger frame is also fully masked, it is displayed as transparent;
+  missing pixels are **not** filled in or presented as detected objects.
