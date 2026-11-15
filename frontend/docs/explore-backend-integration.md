@@ -126,3 +126,24 @@ and the page goes to a placeholder `/share`.
 - Robust field-wide astrometry, crowded-field matching, uncertainty propagation,
   ephemeris-based validation and per-target cross-epoch source association remain
   future scientific work.
+
+## Diagnosing zero real motion candidates
+
+When the motion job finishes, the response includes `result.diagnostics`:
+`comparableObservations`, `requiredObservations`, `detectedSources`,
+`reason`. The UI distinguishes:
+
+- `insufficient_comparable_observations`: fewer than 3 images from a matching
+  detector and wavelength. A long timeline does **not** guarantee these exist.
+- `no_sources_detected`: matching images exist, but no bright enough sources
+  were detected to follow.
+- `no_consistent_tracks`: sources were detected, but no track passed motion
+  consistency tests. This is a legitimate outcome, not a backend failure.
+- `candidates_found`: one or more screening candidates; not scientifically
+  verified trajectories.
+
+The job endpoint returns HTTP 200 for both running and completed jobs.
+Check the **JSON** of `GET /explore/jobs/{jobId}` for `status` and `result`;
+HTTP 200 alone does not mean motion was found. The frame endpoint may
+independently fail when requesting a larger cutout from the archive; a failed
+zoom-level frame is not a motion finding.
