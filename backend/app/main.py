@@ -1,5 +1,4 @@
 import asyncio
-from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -9,17 +8,13 @@ from .archive import ArchiveError, cutout_url, download, search
 from .imaging import align, render, target_wcs
 from .models import SearchResult, SkyRequest, TimelapseRequest
 from .local_store import cutout_path, list_targets, local_path, search_local
+from .explore.router import router as explore_router
 
-@asynccontextmanager
-async def lifespan(app):
-    async with httpx.AsyncClient(timeout=httpx.Timeout(90, connect=15), follow_redirects=False,
-                                 limits=httpx.Limits(max_connections=8)) as client:
-        app.state.client = client
-        app.state.jobs = asyncio.Semaphore(2)
-        app.state.downloads = asyncio.Semaphore(4)
-        yield
+from .runtime import lifespan
 
 app = FastAPI(title='Pulsr SPHEREx Backend', version='0.1.0', lifespan=lifespan)
+
+app.include_router(explore_router)
 
 @app.exception_handler(ArchiveError)
 async def archive_error(request, exc):

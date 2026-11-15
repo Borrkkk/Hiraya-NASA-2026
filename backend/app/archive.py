@@ -42,7 +42,8 @@ def parse_results(body, collection, request):
                     if n.tag.split('}')[-1] == 'INFO' and n.attrib.get('name') == 'QUERY_STATUS']
         if 'ERROR' in statuses:
             raise ArchiveError('IRSA rejected the search')
-        table = parse_single_table(BytesIO(body)).to_table()
+        # IRSA names its columns; it gives them no IDs, so astropy would call them col_0, col_1...
+        table = parse_single_table(BytesIO(body)).to_table(use_names_over_ids=True)
         results = []
         for row in table:
             url = str(row['access_url'])

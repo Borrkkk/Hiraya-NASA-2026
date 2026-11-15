@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowUpRight, Bookmark, Check, Pin, SlidersHorizontal } from "lucide-react";
 import { Avatar, Chip, SkyImage, Verdict } from "@/components/ui";
-import { exploreHref } from "@/lib/explore";
 import { getObject } from "@/lib/sky/catalog";
 import { PostDiscussion } from "@/components/discussion/post-discussion";
 import { profileHref, type UserProfile, type ObservationPost } from "@/lib/profiles";
@@ -55,9 +54,9 @@ export function ProfilePosts({ profile, posts }: { profile: UserProfile; posts: 
                   {isSaved ? <Check size={17} aria-hidden="true" /> : <Bookmark size={17} aria-hidden="true" />}
                 </button>
               </header>
-              <h2 className="mt-5 max-w-xl text-h3">{post.title}</h2>
+              <h2 className="mt-5 max-w-xl text-h3"><Link href={`/findings/${post.id}`} className="hover:underline">{post.title}</Link></h2>
               <p className="mt-2 text-body-sm leading-relaxed text-ink-secondary">{post.body}</p>
-              <Link href={exploreHref({ q: object.name, ra: object.ra, dec: object.dec, fov: object.fov })} className="group relative mt-4 block overflow-hidden rounded-md" aria-label={`Explore ${object.name}`}>
+              <Link href={`/findings/${post.id}`} className="group relative mt-4 block overflow-hidden rounded-md" aria-label={`Open discussion: ${post.title}`}>
                 <SkyImage cutout={post.cutout} alt={`WISE infrared reference field around ${object.name}`} className="aspect-[2.2/1]" sizes="(max-width: 1024px) 90vw, 700px" priority={post.pinned} />
                 <span className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-sm bg-scrim px-2.5 py-1.5 text-small text-ink">{object.name} <ArrowUpRight size={14} aria-hidden="true" /></span>
               </Link>

@@ -172,3 +172,16 @@
   scrollbar-width: thin;
   scrollbar-color: var(--color-line-strong) transparent;
 }
+
+/*
+ * Explore view: Aladin's logo has to stay visible (terms of use). It would sit
+ * under the SPHEREx canvas, so lift it above and park it bottom right.
+ */
+.explore-view .aladin-logo-container {
+  position: absolute;
+  z-index: 6;
+  top: auto;
+  right: 12px;
+  bottom: 12px;
+  left: auto;
+}

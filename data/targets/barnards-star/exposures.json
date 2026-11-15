@@ -62,7 +62,7 @@
       "s3_key": "dr1/level2/2025W35_1A/l2b-v27-2026-230/1/level2_2025W35_1A_0658_1D1_spx_l2b-v27-2026-230.fits",
       "s3_url": "https://nasa-irsa-spherex.s3.us-east-1.amazonaws.com/dr1/level2/2025W35_1A/l2b-v27-2026-230/1/level2_2025W35_1A_0658_1D1_spx_l2b-v27-2026-230.fits",
       "pixel_scale_arcsec": 6.15,
-      "local_cutout": "cutouts/2025W35_1A_0658_1_D1.fits"
+      "local_cutout": null
     },
     {
       "obs_id": "2025W35_1A_0658_2",
@@ -80,7 +80,7 @@
       "s3_key": "dr1/level2/2025W35_1A/l2b-v27-2026-230/1/level2_2025W35_1A_0658_2D1_spx_l2b-v27-2026-230.fits",
       "s3_url": "https://nasa-irsa-spherex.s3.us-east-1.amazonaws.com/dr1/level2/2025W35_1A/l2b-v27-2026-230/1/level2_2025W35_1A_0658_2D1_spx_l2b-v27-2026-230.fits",
       "pixel_scale_arcsec": 6.15,
-      "local_cutout": "cutouts/2025W35_1A_0658_2_D1.fits"
+      "local_cutout": null
     },
     {
       "obs_id": "2025W35_1A_0658_3",

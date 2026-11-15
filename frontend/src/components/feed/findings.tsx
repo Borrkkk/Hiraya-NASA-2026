@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Avatar, SkyImage, Verdict } from "@/components/ui";
-import { exploreHref } from "@/lib/explore";
 import { profileHref } from "@/lib/profiles";
 import { findings } from "@/lib/feed/mock";
 import { getObject } from "@/lib/sky/catalog";
@@ -42,7 +41,7 @@ export function Findings() {
                   <h4 className="text-body text-ink">
                     {/* Author links sit above the stretched observation link. */}
                     <Link
-                      href={exploreHref({ q: o.name, ra: o.ra, dec: o.dec, fov: f.fov })}
+                      href={`/findings/${f.id}`}
                       className="rounded-xs after:absolute after:inset-0 after:content-['']"
                     >
                       {f.title}

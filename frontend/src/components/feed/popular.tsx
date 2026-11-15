@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { exploreHref } from "@/lib/explore";
+import { exploreHref } from "@/lib/explore/href";
 import { popular } from "@/lib/feed/mock";
 import { getObject } from "@/lib/sky/catalog";
 import { formatCount } from "@/lib/sky/format";

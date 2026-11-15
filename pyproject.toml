@@ -17,13 +17,16 @@ dependencies = [
   "pydantic>=2",
   "httpx",
   "diskcache",
+  "scipy>=1.15,<2",
+  "pillow>=11,<13",
+  "truststore>=0.10,<1",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-asyncio", "pytest-recording", "respx"]
 
 [tool.setuptools.packages.find]
-include = ["spherex_inspect*", "api*"]
+include = ["spherex_inspect*", "api*", "backend.app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

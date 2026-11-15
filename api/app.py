@@ -1,4 +1,4 @@
-"""HTTP layer. No logic: parse query params → orchestrator → JSON."""
+"""Unified HTTP entry point: point inspection and the Explore compatibility API."""
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException, Query
@@ -7,8 +7,13 @@ import spherex_inspect
 from spherex_inspect.discovery import DiscoveryError
 from spherex_inspect.intake import IntakeError
 from spherex_inspect.models import FieldContext, FramesResponse, InspectRequest, InspectResponse
+from backend.app.runtime import lifespan
+from backend.app.explore.router import router as explore_router
+from . import explore_analysis
 
-app = FastAPI(title="SPHEREx Point Inspection API", version="0.1.0")
+app = FastAPI(title="SPHEREx Point Inspection API", version="0.2.0", lifespan=lifespan)
+app.state.explore_science = explore_analysis
+app.include_router(explore_router)
 
 
 def _bands(bands: str | None) -> list[int] | None:
