@@ -101,20 +101,15 @@ export function SkySearch({ className }: { className?: string }) {
     }
     const taken = new Set(hits.map((h) => normName(h.name)));
     for (const o of searchCatalog(value, kinds).filter((c) => !taken.has(normName(c.name)))) {
+      // No coordinates means there is nothing to point SPHEREx at.
+      // Sending just a name to /explore silently opened the Orion fallback.
+      if (o.ra === undefined || o.dec === undefined) continue;
       out.push({
         key: o.id,
         primary: o.name,
         secondary: [kindLabel(o.kind), o.where].filter(Boolean).join(" · "),
         trailing: o.ra !== undefined && o.dec !== undefined ? formatCoords(o.ra, o.dec) : "Moving object",
         href: exploreHref({ q: o.name, ra: o.ra, dec: o.dec, fov: o.fov, types: kinds }),
-      });
-    }
-    if (text) {
-      out.push({
-        key: "text",
-        primary: `Search for “${text}”`,
-        secondary: "Look it up across the catalogues",
-        href: exploreHref({ q: text, types: kinds }),
       });
     }
     return out;
@@ -180,6 +175,7 @@ export function SkySearch({ className }: { className?: string }) {
   };
 
   const showList = open && options.length > 0;
+  const noMatches = open && text.length > 0 && options.length === 0 && !hitsQuery.isFetching;
   const heading = coords ? "Coordinates" : text ? "Matches" : "Try";
 
   return (
@@ -242,7 +238,7 @@ export function SkySearch({ className }: { className?: string }) {
         </button>
       </div>
 
-      {open && (filtersOpen || showList) && (
+      {open && (filtersOpen || showList || noMatches) && (
         <div className="absolute inset-x-0 top-[calc(100%+8px)] z-40 flex flex-col overflow-hidden rounded-xl border border-line-strong bg-overlay">
           {filtersOpen && (
             <div id={filtersId} className="flex flex-col gap-3 border-b border-line p-4">
@@ -268,6 +264,12 @@ export function SkySearch({ className }: { className?: string }) {
             </div>
           )}
 
+          {noMatches && (
+            <p className="px-4 py-3 text-small text-ink-secondary">
+              No target with known sky coordinates was found. Try a named star,
+              nebula, or coordinates (RA and Dec).
+            </p>
+          )}
           {showList && (
             <div className="p-2">
               <p className="px-3 pb-1 pt-2 text-caption text-ink-secondary">{heading}</p>
