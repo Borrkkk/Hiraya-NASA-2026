@@ -108,7 +108,7 @@ export function ViewStatus() {
       </div>
       <p className="pointer-events-none absolute bottom-3 left-3 z-[5] inline-flex items-center gap-2 rounded-xs bg-scrim px-2 py-1 text-caption text-ink-secondary">
         <Database size={12} strokeWidth={1.5} aria-hidden="true" />
-        {usingMock ? "Mock SPHEREx data" : "SPHEREx · NASA/JPL-Caltech, IRSA"}
+        {usingMock ? "Demo data · simulated SPHEREx" : "SPHEREx · NASA/JPL-Caltech, IRSA"}
       </p>
     </>
   );

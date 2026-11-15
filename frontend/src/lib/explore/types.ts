@@ -1,7 +1,7 @@
 // The data contract between the Explore page and the backend.
 //
-// Every shape the UI needs from the server is here. The mock client
-// (mock/mock-client.ts) and the HTTP client (http-client.ts) both implement
+// Every shape the UI needs from the server is here. The demo client
+// (demo/demo-client.ts) and the HTTP client (http-client.ts) both implement
 // `ExploreApi` (api.ts) against these types. Integration guide:
 // frontend/docs/explore-backend-integration.md
 //

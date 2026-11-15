@@ -16,8 +16,9 @@ export type ExploreParams = {
   fallback: boolean;
 };
 
-// Orion Nebula: where we start when someone opens /explore with nothing.
-const FALLBACK: AreaRequest = { ra: 83.82, dec: -5.39, fov: 2 };
+// Barnard's Star, where it is now (it moves 10 arcseconds a year): where we
+// start when someone opens /explore with nothing.
+const FALLBACK: AreaRequest = { ra: 269.4463, dec: 4.7682, fov: 0.2 };
 
 export function readParams(p: URLSearchParams): ExploreParams {
   const ra = Number(p.get("ra"));
