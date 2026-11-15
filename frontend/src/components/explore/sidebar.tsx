@@ -42,7 +42,7 @@ export function Sidebar() {
             )}
             {mode === "motion" && (
               <>
-                <Collapsible title="Movement" meta={`${ex.movers.length} found`}>
+                <Collapsible title="Motion candidates" meta={`${ex.movers.length} found`}>
                   <MotionPanel />
                 </Collapsible>
                 <Collapsible title="What you selected" defaultOpen={!!ex.box} key={ex.box ? "open" : "closed"}>
