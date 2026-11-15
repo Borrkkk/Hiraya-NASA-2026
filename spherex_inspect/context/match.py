@@ -210,3 +210,33 @@ def assess_candidate(verdict: str, summary: PointSummary | None) -> tuple[bool, 
         return False, n, ("seen in only 1 artifact-free frame: an artifact (cosmic ray, ghost) or an "
                           "untracked mover is more likely than a new object")
     return False, n, "no artifact-free detection: likely an artifact, not a discovery"
+
+
+def _bright(body: KnownBody) -> bool:
+    return any(body.mags.get(k, 99) < lim for k, lim in config.TRANSIENT_BRIGHT_STAR.items())
+
+
+def explain_transients(summary: PointSummary | None, bodies: list[KnownBody],
+                       solar_by_frame: dict[str, list[KnownBody]] | None):
+    """Each difference-image transient → a solar-system body in that frame, a known star (a
+    residual of a bright / variable / moving star), or unexplained."""
+    from ..models import TransientMatch
+
+    out = []
+    for d in (summary.difference if summary else []):
+        if not d.transient or d.peak_ra is None:
+            continue
+        best, kind, sep_best = None, "unexplained", None
+        for sb in (solar_by_frame or {}).get(d.frame_id, []):
+            sep = sep_arcsec(sb.ra_at_t, sb.dec_at_t, d.peak_ra, d.peak_dec)
+            if sep <= config.TRANSIENT_SOLAR_RADIUS_ARCSEC and (sep_best is None or sep < sep_best):
+                best, kind, sep_best = sb.name, "solar_system", sep
+        if best is None:
+            for b in bodies:
+                sep = sep_arcsec(b.ra_at_t, b.dec_at_t, d.peak_ra, d.peak_dec)
+                r = config.TRANSIENT_BRIGHT_STAR_RADIUS_ARCSEC if _bright(b) else config.TRANSIENT_STAR_RADIUS_ARCSEC
+                if sep <= r and (sep_best is None or sep < sep_best):
+                    best, kind, sep_best = b.name, "known_star", sep
+        out.append(TransientMatch(frame_id=d.frame_id, t_mid=d.t_mid, peak_snr=d.peak_snr, ra=d.peak_ra,
+                                  dec=d.peak_dec, explained_by=best, kind=kind, separation_arcsec=sep_best))
+    return sorted(out, key=lambda m: -m.peak_snr)

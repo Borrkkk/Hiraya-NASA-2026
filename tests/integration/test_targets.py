@@ -278,3 +278,39 @@ def test_step7_blank_field():
     nothing = resp.summary.latest_position is None
     assert nothing or c.verdict == "no_known_match", f"blank field gave {c.verdict} ({c.note})"
     assert not c.candidate_discovery or c.n_clean_detections >= 2
+
+
+# --------------------------------------------------------------------------- #
+# Step 8 — stacking + difference images
+# --------------------------------------------------------------------------- #
+
+# WISE 0855 at 2026.0 (SIMBAD astrometry propagated; pm ≈ −8.1″/yr in RA, so the brief's ~2014
+# coordinates are ~97″ off by now).
+WISE0855 = (133.75976526566546, -7.242182182223836)
+
+
+def test_step8_wise0855_stack_gains_snr():
+    resp = _run(*WISE0855, max_frames=120)
+    st = {s.detector: s for s in resp.summary.stacked}
+    for s in resp.summary.stacked:
+        print(f"  stack D{s.detector} n={s.n_frames} λ={s.wavelength_um:.2f} flux={s.flux_jy * 1e3:.3f}±"
+              f"{s.flux_err_jy * 1e3:.3f} mJy snr={s.snr:.1f} (frame median {s.median_frame_snr:.1f}) "
+              f"off={s.offset_from_target_arcsec:.1f}\"")
+    # Long-λ detectors see the brown dwarf itself: in the stack, at the target, S/N ≥ 2.5× a frame.
+    for d in (5, 6):
+        assert st[d].detected and st[d].offset_from_target_arcsec < 6.15
+        assert st[d].snr > 2.5 * st[d].median_frame_snr
+    # Its 4.5 µm flux is close to WISE W2 ≈ 14.0 mag ≈ 0.43 mJy.
+    assert 0.2e-3 < st[6].flux_jy < 1.0e-3
+    assert resp.context.best_match is not None
+
+
+def test_step8_vesta_transient_explained():
+    resp = _run(VESTA["ra"], VESTA["dec"], time_start=VESTA["t_mid"] - 30, time_end=VESTA["t_mid"] + 30)
+    tr = {t.frame_id: t for t in resp.context.transients}
+    for t in list(resp.context.transients)[:6]:
+        print(f"  transient {t.frame_id} S/N {t.peak_snr:.1f} → {t.kind} {t.explained_by or ''}")
+    assert VESTA["frame_id"] in tr, "Vesta's frame should be a difference-image transient"
+    v = tr[VESTA["frame_id"]]
+    assert v.kind == "solar_system" and "Vesta" in v.explained_by
+    assert v.peak_snr == max(t.peak_snr for t in resp.context.transients)  # the strongest one

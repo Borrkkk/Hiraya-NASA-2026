@@ -142,3 +142,27 @@ VAR_SATURATED_ERR_FLOOR = 0.10
 MATCH_BRIGHTNESS_VETO_RATIO = 100.0
 # Approximate zero points (Jy) for the veto only (a factor 1.5 does not matter at 100×).
 VETO_BANDS = {"RP": (0.78, 3631.0), "G": (0.64, 3631.0), "Ks": (2.16, 666.7), "W1": (3.4, 309.54), "W2": (4.6, 171.79)}
+
+# Stacking + difference images (build step 8)
+STACK_MIN_FRAMES = 3  # per detector
+DIFF_MIN_FRAMES = 4  # frames per detector for a median template
+DIFF_SNR = 7.0  # residual peak (diff / noise) that counts as a transient candidate
+DIFF_EDGE_PX = 2  # ignore residual peaks this close to the cutout edge
+DIFF_TARGET_RADIUS_PX = 2.0  # a residual this close to the target is "at the target"
+# Pixels with these flags are left out of stacks and templates (saturation included: those
+# pixels carry no reliable flux; a saturated core simply stays masked in the stack).
+FLAGS_STACK_EXCLUDE = FLAGS_UNUSABLE
+# Difference images keep saturated pixels (a bright transient such as Vesta IS saturated) and
+# drop only dead pixels and artifacts.
+FLAGS_DIFF_EXCLUDE = FLAGS_BAD_PIXEL | frozenset({"MISSING_DATA", "PERSIST", "GHOST", "GHOST_FPA", "GHOST_EXT",
+                                                  "STREAK", "HALO", "SNOWBALL", "OUTLIER", "TRANSIENT"})
+# Each frame samples a different λ, so the PSF (and a star's flux) differ from the template:
+# add this fraction of the template to the noise so bright-star residuals are not transients.
+DIFF_TEMPLATE_FRAC = 0.10
+STACK_MAX_SATURATED_FRACTION = 0.5  # above this, a detector stack is not measured
+
+# Explaining difference-image transients (Field Context)
+TRANSIENT_SOLAR_RADIUS_ARCSEC = 25.0  # saturated bodies peak in their wings (Vesta: 19″)
+TRANSIENT_STAR_RADIUS_ARCSEC = 9.0
+TRANSIENT_BRIGHT_STAR_RADIUS_ARCSEC = 25.0
+TRANSIENT_BRIGHT_STAR = {"G": 10.0, "W1": 8.0, "W2": 8.0}  # brighter than this → bright-star radius

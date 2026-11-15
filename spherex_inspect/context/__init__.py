@@ -16,7 +16,7 @@ from .. import config
 from ..models import FieldContext, FrameRef, PointSummary, Target
 from .base import CatalogAdapter, CatalogSource, CatalogUnavailable, ConeQuery
 from .fixed import default_adapters
-from .match import assess_candidate, decide, group_sources, sep_arcsec
+from .match import assess_candidate, decide, explain_transients, group_sources, sep_arcsec
 from .solar_system import SolarSystemLookup
 
 log = logging.getLogger(__name__)
@@ -116,7 +116,8 @@ class FieldContextService:
             candidate = False  # cannot call anything a discovery without catalogs
         return FieldContext(best_match=best, nearby=bodies, solar_system_by_frame=solar_by_frame or {}, verdict=verdict,
                             status_by_source=status, note=note, t_ref=t_ref,
-                            candidate_discovery=candidate, n_clean_detections=n_clean)
+                            candidate_discovery=candidate, n_clean_detections=n_clean,
+                            transients=explain_transients(summary, bodies, solar_by_frame))
 
 
 def default_service() -> FieldContextService:

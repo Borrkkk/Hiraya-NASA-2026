@@ -23,6 +23,7 @@ from .models import (
     Target,
 )
 from .retrieval import CutoutRetrieval
+from .stacking import stack_and_difference
 
 __all__ = ["inspect_point", "inspect_frames", "inspect_context", "discover_and_fetch", "measure_frames",
            "get_discovery", "get_retrieval", "get_context"]
@@ -131,6 +132,8 @@ async def inspect_point(req: InspectRequest) -> InspectResponse:
     cutouts = await _fetch(target, frames, warnings)
     measurements = await _measure(cutouts, target)
     summary = aggregate(measurements)
+    # Stacking works on pixels across frames; its results ride along in the summary.
+    summary.stacked, summary.difference = await asyncio.to_thread(stack_and_difference, cutouts, target, measurements)
     if summary.quality.n_usable == 0 and summary.spectrum_flagged:
         warnings.append("summary: no usable flux samples; detected samples are flagged "
                         "(e.g. saturated) and listed in spectrum_flagged")
@@ -141,6 +144,11 @@ async def inspect_point(req: InspectRequest) -> InspectResponse:
         context = get_context().build(target, frames, sources, status, summary, solar_by_frame=solar)
         if context.candidate_discovery:
             warnings.append(f"candidate discovery: {context.note}")
+        unexplained = [t for t in context.transients if t.kind == "unexplained"]
+        if unexplained:
+            warnings.append(f"difference images: {len(unexplained)} unexplained transient(s) "
+                            f"(possible movers or artifacts), strongest S/N {unexplained[0].peak_snr:.0f} "
+                            f"in {unexplained[0].frame_id}")
         failed = [k for k, v in status.items() if not v.startswith("ok")]
         if failed:
             warnings.append(f"context: catalog(s) failed: {', '.join(failed)}")

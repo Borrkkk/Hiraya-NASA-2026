@@ -193,6 +193,43 @@ class BandVariability(BaseModel):
     note: str | None = None
 
 
+class StackedMeasurement(BaseModel):
+    """Co-add of all frames of one detector on a common sky grid (proposed, step 8)."""
+
+    detector: int
+    n_frames: int
+    wavelength_um: float | None = None  # mean λ at the target over the stacked frames
+    wavelength_min_um: float | None = None
+    wavelength_max_um: float | None = None
+    detected: bool = False
+    ra: float | None = None
+    dec: float | None = None
+    offset_from_target_arcsec: float | None = None
+    flux_jy: float | None = None  # band-averaged over the detector's λ range
+    flux_err_jy: float | None = None
+    snr: float | None = None
+    flag_names: list[str] = Field(default_factory=list)
+    usable: bool = False
+    flux_method: str | None = None
+    median_frame_snr: float | None = None  # for comparison with the stack's snr
+    note: str | None = None  # why the stack was not measured
+
+
+class DifferenceFrame(BaseModel):
+    """Frame minus the median of its detector's other frames (proposed, step 8)."""
+
+    frame_id: str
+    detector: int
+    t_mid: float
+    peak_snr: float | None = None  # strongest positive residual in the cutout
+    peak_ra: float | None = None
+    peak_dec: float | None = None
+    peak_sep_from_target_arcsec: float | None = None
+    flux_at_target_jy: float | None = None  # residual flux in the 2 px aperture at the target
+    flux_at_target_err_jy: float | None = None
+    transient: bool = False  # peak_snr >= DIFF_SNR
+
+
 class QualitySummary(BaseModel):
     n_frames: int
     n_usable: int  # flux-usable
@@ -216,6 +253,8 @@ class PointSummary(BaseModel):
     proper_motion_note: str | None = None
     light_curve: list[LightCurveSample] = Field(default_factory=list)
     variability: list[BandVariability] = Field(default_factory=list)
+    stacked: list[StackedMeasurement] = Field(default_factory=list)
+    difference: list[DifferenceFrame] = Field(default_factory=list)
     quality: QualitySummary
 
 
@@ -246,6 +285,19 @@ class BestMatch(KnownBody):
     match_score: float
 
 
+class TransientMatch(BaseModel):
+    """What explains a difference-image transient (proposed, step 8)."""
+
+    frame_id: str
+    t_mid: float
+    peak_snr: float
+    ra: float
+    dec: float
+    explained_by: str | None = None  # body name
+    kind: Literal["solar_system", "known_star", "unexplained"] = "unexplained"
+    separation_arcsec: float | None = None
+
+
 class FieldContext(BaseModel):
     best_match: BestMatch | None = None
     nearby: list[KnownBody] = Field(default_factory=list)
@@ -256,6 +308,7 @@ class FieldContext(BaseModel):
     # True when no known body explains a source seen in >= 2 artifact-free frames (proposed).
     candidate_discovery: bool = False
     n_clean_detections: int | None = None
+    transients: list[TransientMatch] = Field(default_factory=list)
     t_ref: float | None = None  # MJD the catalog positions were propagated to (proposed addition)
 
 

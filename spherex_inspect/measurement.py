@@ -206,6 +206,8 @@ def psf_wing_fit(sub: np.ndarray, var: np.ndarray, exclude: np.ndarray, psf: np.
         amp_err = math.sqrt(max(cov[2, 2], 0.0) * max(rchi2, 1.0))
     except Exception:
         return None
+    if not math.isfinite(amp_err) or amp_err <= 0:  # degenerate fit (seen on a stack: S/N 5e9)
+        return None
     return {"flux": amp, "flux_err": amp_err, "x": x0, "y": y0, "n_pix": int(sel.sum()), "rchi2": rchi2}
 
 

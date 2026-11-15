@@ -371,3 +371,48 @@ ePSF fit to the unsaturated wings (the plan's "add the ePSF fit later").
   the model** (median 0 within 4 px over 98 frames). Measuring it needs an extended PSF-wing
   model, which IRSA does not provide. The variability note now says "masked (NaN) saturated
   core and the ePSF wing fit failed".
+
+## Step 8 (stretch) — Stacking + difference images (verified 2026-11-14)
+The plan gives no done check for this step; these are the checks I set and ran live.
+
+### New component (please review): `[4b] Stacking` (`stacking.py`)
+The plan says only Aggregation looks across frames, and it does no pixel work. Stacking needs
+both, so it is a separate component: pixels, across frames, no network, no catalogs.
+- Reprojects every cutout onto one TAN grid centred on the target (each frame's own WCS incl.
+  SIP; bilinear interpolation of background-subtracted surface brightness; a grid pixel is
+  valid only if every input pixel touching it was good).
+- **Co-add**: per detector, inverse-variance stack, measured with the unchanged `measure()`
+  (a detector stack is one "frame" at the band-mean λ). Not done when > 50 % of a detector's
+  frames are saturated (saturated pixels are excluded, so a stack adds nothing) — `note` says so.
+- **Difference images**: each frame minus the median of its detector's other frames (≥ 4
+  frames). Saturated pixels are KEPT here (a bright transient like Vesta is saturated); only
+  dead pixels and artifacts are dropped. Noise = frame + template variance + 10 % of the
+  template, because each frame samples a different λ (PSF and flux differ from the template).
+  Search only inside the inscribed circle and where the template has ≥ 60 % of the frames.
+  Peak S/N ≥ 7 → `transient`.
+- New contract fields (proposed): `PointSummary.stacked: list[StackedMeasurement]`,
+  `PointSummary.difference: list[DifferenceFrame]`, `FieldContext.transients:
+  list[TransientMatch]` (solar-system body in that frame within 25″ / known star within 9″,
+  25″ if G < 10 / unexplained). A warning lists unexplained transients.
+
+### Live checks
+- **WISE 0855** (SIMBAD astrometry at 2026.0 — the brief's ~2014 position is ~97″ off now):
+  D5/D6 stacks S/N **17.9 / 12.0 vs 4.8 / 3.5** per frame (×3.4–3.7; √20 = 4.5), 2.1–2.6″ from
+  the target, **0.53 mJy at 4.7 µm** (≈ WISE W2 0.43 mJy). D1–D4 detect a neighbour 6.8″ away
+  (WISE 0855 is invisible below ~2 µm); the stack's `offset_from_target_arcsec` shows it.
+  Context: `ambiguous` (the neighbour is inside one PSF), top body WISE 0855 (`brown_dwarf`,
+  SIMBAD BD*).
+- **Vesta** (±30 days around its frame, 117 frames): its frame is **the strongest transient,
+  S/N 72, explained as 4 Vesta**; the next ones (S/N 8–11) are residuals of one known star.
+- Barnard's Star: stacks skipped (saturated); its residuals in ~every frame are real (fast mover
+  + saturation) and are explained as the known star.
+
+### Bugs found by the live runs (fixed)
+- The ePSF wing fit could return a zero error on a degenerate fit (a stack gave S/N 5×10⁹); it
+  now requires a finite positive error.
+- Masking saturated pixels in difference images hid Vesta completely; bright-star residuals and
+  partly covered corners produced 65/117 false transients. Fixed as described above (now ~10 %
+  of frames in an ecliptic field, most explained as known stars).
+
+### Timing
+- Live suite: 11 passed, 1 skipped, ~39 s warm. Offline: 146 tests in ~2.5 s.
