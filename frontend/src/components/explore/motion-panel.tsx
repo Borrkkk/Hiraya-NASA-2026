@@ -13,6 +13,11 @@ export function MotionPanel() {
 
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-small text-ink-secondary">
+        The numbered circle is the object at the selected date. Its dashed trail
+        shows earlier positions, not another object. Press Play on the timeline
+        to watch the position change.
+      </p>
       <ol className="flex flex-col" aria-label="Motion candidates">
         {ex.movers.map((x) => {
           const selected = x.id === ex.moverId;

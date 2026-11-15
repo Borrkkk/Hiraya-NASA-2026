@@ -58,7 +58,7 @@ export function ViewStatus() {
             className="inline-flex items-center gap-2.5 rounded-lg border border-line-strong bg-ground/90 px-3 py-2 text-small text-ink"
           >
             <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-ink-secondary" />
-            Loading real SPHEREx data…
+            {usingMock ? "Loading simulated sky data…" : "Loading real SPHEREx data…"}
           </p>
         )}
         {noData && (

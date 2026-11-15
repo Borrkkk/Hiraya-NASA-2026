@@ -165,7 +165,25 @@ function build(ra: number, dec: number, fov: number, id: string): SkyModel {
     };
   });
 
-  return { area, epochs, stars, blobs, movers, nearest, seed: hashString(id) };
+  // Demo-only visual safety: background stars near a mover's path can look
+  // like a second copy of that moving object in a still screenshot. Keep the
+  // static sky populated, but clear a small corridor around each fake track.
+  // This never changes real SPHEREx imagery or motion analysis.
+  const samplePositions = movers.flatMap((m) =>
+    Array.from({ length: 13 }, (_, i) => {
+      const p = moverPosition(m, (spanYears * i) / 12);
+      return fp.toScreen(p.ra, p.dec);
+    }),
+  );
+  const clearStars = stars.filter((s) => {
+    const [x, y] = fp.toScreen(s.ra, s.dec);
+    // Mock star sprites have a width of size * 8 pixels. Leave room for the
+    // mover's own sprite too, so two bright sources never blend together.
+    const minSeparationPx = 18 + s.size * 4 + 14;
+    return samplePositions.every(([mx, my]) => Math.hypot(x - mx, y - my) > minSeparationPx);
+  });
+
+  return { area, epochs, stars: clearStars, blobs, movers, nearest, seed: hashString(id) };
 }
 
 export function moverPosition(m: MoverTruth, years: number): SkyPoint {
