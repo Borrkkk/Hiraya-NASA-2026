@@ -148,6 +148,14 @@ async def verify(client: httpx.AsyncClient | None, ra: float, dec: float, target
 
     if glitch:
         return glitch
+    # The legacy verifier also checks only the selected box, not the track
+    # across epochs. Do not call a mover explained from a single match.
+    if target.get("moverId"):
+        return {"outcome": "unexplained",
+                "headline": "Motion candidate — track not yet verified",
+                "nearMatch": {"name": "Track verification unavailable",
+                              "source": "Point catalog checks",
+                              "note": "A source at one position cannot verify a complete motion track."}}
     found = local or simbad or skybot
     if found:
         return found
