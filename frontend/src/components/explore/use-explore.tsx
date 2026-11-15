@@ -65,7 +65,7 @@ function useController() {
   const area: Area | undefined = areaQuery.data;
 
   // ---- the view (a store, so panning doesn't re-render the page)
-  const [viewStore] = useState<Store<View>>(() => createStore<View>(params.target));
+  const [viewStore] = useState<Store<View>>(() => createStore<View>(params.view));
   const [sizeStore] = useState<Store<Size>>(() => createStore<Size>({ w: 1000, h: 600 }));
 
   const limits = useMemo(
