@@ -11,10 +11,11 @@
 // The shapes below are what the real endpoints should return.
 
 import type { Person, VerdictKind } from "@/components/ui";
+import { getProfile, observationPosts } from "@/lib/profiles";
 
 export const people: Record<string, Person> = {
-  maya: { initials: "MR", tone: 1, name: "Maya R." },
-  jordan: { initials: "JK", tone: 2, name: "Jordan K." },
+  maya: getProfile("maya-rao")!,
+  jordan: getProfile("jordan-kim")!,
 };
 
 /** For you: one hero, then a couple of quieter picks. */
@@ -104,29 +105,17 @@ export type Finding = {
   fov: number;
 };
 
-export const findings: Finding[] = [
-  {
-    id: "barnard-moves",
-    author: people.maya,
-    activity: "Blinked two frames",
-    verdict: "explained",
-    cutout: "barnard",
-    objectId: "barnard",
-    title: "One dot slid up the screen",
-    body: "Flicked between two dates and a single star moved. It's Barnard's Star, the fastest-moving star we know.",
-    facts: ["Red dwarf", "10.4″ / yr", "6 ly"],
-    fov: 0.2,
-  },
-  {
-    id: "betelgeuse-spikes",
-    author: people.jordan,
-    activity: "Ran Verify",
-    verdict: "artifact",
-    cutout: "betelgeuse",
-    objectId: "betelgeuse",
-    title: "A giant cross over Orion's shoulder",
-    body: "Looked like something huge. The check says it's the detector: the star is so bright it floods the image.",
-    facts: ["Bright star", "Saturated", "Betelgeuse"],
-    fov: 0.5,
-  },
-];
+export const findings: Finding[] = observationPosts
+  .filter((post) => ["barnard-moves", "betelgeuse-spikes"].includes(post.id))
+  .map((post) => ({
+    id: post.id,
+    author: getProfile(post.authorId)!,
+    activity: post.activity ?? "Shared an observation",
+    verdict: post.verdict,
+    cutout: post.cutout,
+    objectId: post.objectId,
+    title: post.title,
+    body: post.body,
+    facts: post.facts ?? [],
+    fov: post.fov ?? 0.2,
+  }));
