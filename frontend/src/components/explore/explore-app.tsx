@@ -1,5 +1,7 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
+
 import { BandPicker } from "./band-picker";
 import { FovControl } from "./fov-control";
 import { Sidebar } from "./sidebar";
@@ -15,8 +17,18 @@ import { ExploreProvider } from "./use-explore";
  * (lib/explore). See docs/explore-backend-integration.md.
  */
 export function ExploreApp() {
+  const search = useSearchParams();
+  // Next.js may reuse this page component when navigating from one Explore
+  // link to another. Remount the controller only when the DATA target changes,
+  // never on a pan/zoom or a timeline change.
+  const targetKey = [
+    search.get("ra") ?? "",
+    search.get("dec") ?? "",
+    search.get("fov") ?? "",
+    search.get("q") ?? "",
+  ].join("|");
   return (
-    <ExploreProvider>
+    <ExploreProvider key={targetKey}>
       <Layout />
     </ExploreProvider>
   );

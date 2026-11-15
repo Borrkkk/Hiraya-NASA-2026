@@ -1,8 +1,12 @@
 "use client";
 
-import { ArrowLeft, Check, Link2 } from "lucide-react";
+import { ArrowLeft, Check, Link2, MapPin } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { exploreHref } from "@/lib/explore/href";
+import { separationDeg } from "@/lib/explore/projection";
+import { useStore } from "@/lib/explore/store";
 import { Logo } from "@/components/ui";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { formatCoords } from "@/lib/sky/format";
@@ -10,10 +14,15 @@ import { useExplore } from "./use-explore";
 
 /** Back to the sky, where we are, and a link to this exact view. */
 export function TopBar() {
-  const { area, params } = useExplore();
+  const { area, params, viewStore } = useExplore();
+  const router = useRouter();
+  const view = useStore(viewStore);
   const [copied, setCopied] = useState(false);
-  const name = params.q ?? area?.name ?? "This patch of sky";
-  const c = area?.center ?? params.target;
+  const name = params.fallback ? "Orion (default sky)" : params.q ?? area?.name ?? "This patch of sky";
+  // The camera can pan inside one loaded cutout, but panning does not fetch
+  // images for a NEW sky region. Offer an explicit refresh at the new centre.
+  const moved = !!area && separationDeg(area.center, view) > Math.max(0.02, area.extentDeg * 0.15);
+  const c = view;
 
   const copy = async () => {
     try {
@@ -41,6 +50,17 @@ export function TopBar() {
           {formatCoords(c.ra, c.dec)}
         </span>
       </h1>
+      {moved && (
+        <button
+          type="button"
+          onClick={() => router.push(exploreHref({ ra: view.ra, dec: view.dec, fov: view.fov }))}
+          title="Load new SPHEREx images at the centre of this view"
+          className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md border border-line-strong bg-raised px-3 text-small text-ink transition-colors duration-(--dur-feedback) ease-standard hover:bg-overlay"
+        >
+          <MapPin size={15} strokeWidth={1.5} aria-hidden="true" />
+          Load this sky area
+        </button>
+      )}
       <button
         type="button"
         onClick={copy}

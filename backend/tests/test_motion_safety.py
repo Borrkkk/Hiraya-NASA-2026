@@ -75,3 +75,51 @@ def test_selected_band_does_not_fall_back_to_other_wavelength(monkeypatch, tmp_p
     monkeypatch.setattr(analysis, "shots_at", lambda ra, dec: shots)
     chosen = motion_shots(0, 0, ["a", "b", "c"], ["starlight"])
     assert [s.epoch_id for s in chosen] == ["a", "c"]
+
+
+def test_motion_explains_insufficient_comparable_observations(monkeypatch):
+    from app.explore import analysis
+    monkeypatch.setattr(analysis, "motion_shots", lambda *args: [])
+    result = analysis.find_movers("test", 0, 0, ["a", "b", "c"], ["starlight"])
+    assert result["movers"] == []
+    assert result["diagnostics"] == {
+        "reason": "insufficient_comparable_observations",
+        "comparableObservations": 0,
+        "requiredObservations": 3,
+        "detectedSources": 0,
+    }
+
+
+def test_motion_explains_no_bright_sources(monkeypatch, tmp_path):
+    from app.explore import analysis
+    shots = [
+        Shot(f"e{i}", 1, 61000.0 + i, tmp_path / f"{i}.fits", 0.8)
+        for i in range(3)
+    ]
+    monkeypatch.setattr(analysis, "motion_shots", lambda *args: shots)
+    monkeypatch.setattr(analysis, "grid_wcs", lambda *args: None)
+    monkeypatch.setattr(analysis, "cutout_path", lambda shot, *args: shot.path)
+    monkeypatch.setattr(analysis, "aligned", lambda *args: np.zeros((16, 16)))
+    monkeypatch.setattr(analysis, "detect_sources", lambda *args: [])
+    result = analysis.find_movers("test", 0, 0, ["e0", "e1", "e2"], ["starlight"])
+    assert result["movers"] == []
+    assert result["diagnostics"]["reason"] == "no_sources_detected"
+    assert result["diagnostics"]["comparableObservations"] == 3
+    assert result["diagnostics"]["detectedSources"] == 0
+
+
+def test_motion_explains_no_consistent_track(monkeypatch, tmp_path):
+    from app.explore import analysis
+    shots = [
+        Shot(f"e{i}", 1, 61000.0 + i, tmp_path / f"{i}.fits", 0.8)
+        for i in range(3)
+    ]
+    monkeypatch.setattr(analysis, "motion_shots", lambda *args: shots)
+    monkeypatch.setattr(analysis, "grid_wcs", lambda *args: None)
+    monkeypatch.setattr(analysis, "cutout_path", lambda shot, *args: shot.path)
+    monkeypatch.setattr(analysis, "aligned", lambda *args: np.zeros((16, 16)))
+    monkeypatch.setattr(analysis, "detect_sources", lambda *args: [(5.0, 5.0, 10.0)])
+    result = analysis.find_movers("test", 0, 0, ["e0", "e1", "e2"], ["starlight"])
+    assert result["movers"] == []
+    assert result["diagnostics"]["reason"] == "no_consistent_tracks"
+    assert result["diagnostics"]["detectedSources"] == 3

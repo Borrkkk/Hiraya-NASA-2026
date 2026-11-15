@@ -309,15 +309,24 @@ def link_motion_candidates(
 
 
 def find_movers(area: str, ra: float, dec: float, epoch_ids: list[str], bands: list[str], step=lambda msg: None) -> dict:
-    wcs = grid_wcs(ra, dec, MOTION_LEVEL)
     shots = motion_shots(ra, dec, epoch_ids, bands)
     step("Lining up comparable frames…")
     if len(shots) < MOTION_MIN_DETECTIONS:
-        return {"movers": [], "epochs": epoch_ids}
+        return {
+            "movers": [], "epochs": epoch_ids,
+            "diagnostics": {
+                "reason": "insufficient_comparable_observations",
+                "comparableObservations": len(shots),
+                "requiredObservations": MOTION_MIN_DETECTIONS,
+                "detectedSources": 0,
+            },
+        }
+    wcs = grid_wcs(ra, dec, MOTION_LEVEL)
     frames = [(s.epoch_id, s.mjd, aligned(str(cutout_path(s, ra, dec, MOTION_LEVEL)), ra, dec, MOTION_LEVEL))
               for s in shots]
     step("Detecting sources in each frame…")
     sources = [(e, m, detect_sources(a)) for e, m, a in frames]
+    detected_count = sum(len(found) for _, _, found in sources)
     step("Checking candidate tracks across at least three observations…")
     tracks = link_motion_candidates(sources)
     step("Rejecting inconsistent movement…")
@@ -339,4 +348,14 @@ def find_movers(area: str, ra: float, dec: float, epoch_ids: list[str], bands: l
     for i, mover in enumerate(movers, 1):
         mover["id"], mover["number"] = f"m{i}", i
         MOVERS[(area, mover["id"])] = mover
-    return {"movers": movers, "epochs": epoch_ids}
+    return {
+        "movers": movers, "epochs": epoch_ids,
+        "diagnostics": {
+            "reason": "candidates_found" if movers else (
+                "no_sources_detected" if detected_count == 0 else "no_consistent_tracks"
+            ),
+            "comparableObservations": len(shots),
+            "requiredObservations": MOTION_MIN_DETECTIONS,
+            "detectedSources": detected_count,
+        },
+    }

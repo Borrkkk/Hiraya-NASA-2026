@@ -27,6 +27,7 @@ export function MotionNotice() {
     return (
       <Notice tone="error">
         <p>We couldn&apos;t finish looking for movement. Nothing was changed.</p>
+        <p className="text-ink-secondary">{motion.error}</p>
         <button type="button" className={cn(buttonSecondary, "w-fit")} onClick={ex.analyze}>
           Retry
         </button>
@@ -42,12 +43,21 @@ export function MotionNotice() {
         </button>
       </Notice>
     );
-  if (motion.status === "done" && motion.result.movers.length === 0)
+  if (motion.status === "done" && motion.result.movers.length === 0) {
+    const diagnostics = motion.result.diagnostics;
+    const explanation = diagnostics?.reason === "insufficient_comparable_observations"
+      ? `Only ${diagnostics.comparableObservations} of the available observations can be compared (same detector and nearly the same wavelength). At least ${diagnostics.requiredObservations} are required. Switching to a longer date range or another band might help.`
+      : diagnostics?.reason === "no_sources_detected"
+        ? `The ${diagnostics.comparableObservations} comparable images had no bright enough sources to track. Try another sky area or band.`
+        : diagnostics?.reason === "no_consistent_tracks"
+          ? `Checked ${diagnostics.detectedSources} source detections across ${diagnostics.comparableObservations} comparable images, but none showed steady enough motion. This is a valid result, not an error.`
+          : "At least three comparable observations are needed. Try a longer date range or a different band.";
     return (
       <Notice>
         <p className="text-body-sm font-medium">No reliable motion candidates in this period</p>
-        <p className="text-ink-secondary">At least three comparable observations are needed. Try a longer date range or a different band.</p>
+        <p className="text-ink-secondary">{explanation}</p>
       </Notice>
     );
+  }
   return null;
 }
