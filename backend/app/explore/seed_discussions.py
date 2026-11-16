@@ -4,13 +4,13 @@ from datetime import datetime, timezone
 import json
 
 from .community import database, existing, Region
-from .common import SHOTS, key, mjd_to_iso
+from .common import SHOTS, key, mjd_to_iso, in_band, BAND_WINDOWS
 from .finding_media import attach_media, visible_reference
-from .sources import ensure_shots
+from .sources import ensure_shots, ensure_cutout, cutout_path
 from .warm_demo import configure_index, recommended_targets
 
 EXAMPLES = {
-    'barnard': ('sample-barnard-motion', 'Checking motion near Barnard’s Star', 'Dr. Maya Rao',
+    'barnard': ('barnard-moves', 'Checking motion near Barnard’s Star', 'Dr. Maya Rao',
         'I want to compare the infrared revisits around Barnard’s Star using a consistent patch of sky. The wide view keeps neighbouring sources in the frame, giving us reference points when we compare dates.\n\nThe attached blink runs through real observations in date order. Each frame includes its detector and wavelength, so we can choose close colour matches before comparing positions. The brightness plot samples the smaller orange selection across the cached wavelengths.\n\nThe next step is to compare several well-separated dates and measure the target relative to the same background sources. Which frames would you use as the cleanest reference pair?',
         ['Check several background stars before measuring a shift in the selected region.', 'Keep the crop and brightness scale fixed, and compare observations at similar wavelengths.']),
     'orion-nebula': ('sample-orion-light', 'Different infrared views of the Orion field', 'Jordan Kim',
@@ -24,6 +24,12 @@ EXAMPLES = {
 
 async def main():
     configure_index()
+    # Keep the original feed/profile link when upgrading the older demo thread.
+    with database() as connection:
+        legacy = connection.execute("SELECT * FROM findings WHERE id='sample-barnard-motion'").fetchone()
+        if legacy and json.loads(legacy['evidence']).get('sample') and not connection.execute("SELECT 1 FROM findings WHERE id='barnard-moves'").fetchone():
+            connection.execute("UPDATE findings SET id='barnard-moves' WHERE id='sample-barnard-motion'")
+            connection.execute("UPDATE comments SET finding_id='barnard-moves' WHERE finding_id='sample-barnard-motion'")
     for target in recommended_targets():
         if target['id'] not in EXAMPLES:
             continue
@@ -35,24 +41,33 @@ async def main():
         identifier, title, author, body, comments = EXAMPLES[target['id']]
         size = .025
         epochs = sorted({s.epoch_id for s in shots})
-        bands = ['starlight']
-        from .common import in_band
-        if not any(in_band('starlight', s.wavelength) for s in shots):
-            bands = ['warm-glow']
+        # Cache a small, time-spread comparison set before selecting a visible
+        # source. Index metadata alone cannot supply image evidence.
+        band = max(BAND_WINDOWS, key=lambda b: sum(in_band(b, s.wavelength) for s in shots))
+        candidates = sorted([s for s in shots if in_band(band, s.wavelength)], key=lambda s: s.mjd)
+        if len(candidates) > 8:
+            candidates = [candidates[round(i*(len(candidates)-1)/7)] for i in range(8)]
+        for shot in candidates:
+            if not cutout_path(shot, ra, dec, 0, science=False).exists():
+                await ensure_cutout(None, shot, ra, dec, 0, science=False)
+        bands = [band]
         reference = visible_reference([s for s in shots if in_band(bands[0], s.wavelength)], ra, dec)
-        if not reference:
-            raise ValueError(f'No repeatedly detected reference source in {target["name"]}')
-        box = Region(ra=reference['ra'], dec=reference['dec'], width=size, height=size)
+        box = Region(ra=reference['ra'] if reference else ra,
+                     dec=reference['dec'] if reference else dec, width=size, height=size)
         evidence = {'bands': bands, 'epochs': epochs, 'track': [], 'view': {'ra': ra, 'dec': dec, 'fov': .8},
-                    'sourceReference': reference, 'sample': True, 'authorId': {'Dr. Maya Rao': 'maya-rao', 'Jordan Kim': 'jordan-kim', 'Alex Rivera': 'alex-rivera'}[author]}
-        body = (f'The highlighted reference is a visible image peak matched in {len(reference["positions"])} cached observations in this field. The ring is placed at its measured position in each shown frame.\n\n' + body)
+                    'sample': True, 'authorId': {'Dr. Maya Rao': 'maya-rao', 'Jordan Kim': 'jordan-kim', 'Alex Rivera': 'alex-rivera'}[author]}
+        if reference:
+            evidence['sourceReference'] = reference
+        body = ((f'The highlighted reference is a visible image peak matched in {len(reference["positions"])} cached observations in this field. The ring is placed at its measured position in each shown frame.\n\n' + body) if reference else ('The ring marks the selected sky coordinates; it does not identify an individual star in this extended field.\n\n' + body))
         earliest, latest = min(s.mjd for s in shots), max(s.mjd for s in shots)
         body += f'\n\nObservation set: {len(epochs)} observation IDs, from {mjd_to_iso(earliest)[:10]} to {mjd_to_iso(latest)[:10]}. The image panel and evidence drawer include the frame details for checking or reproducing the comparison.'
         with database() as connection:
             overlap = existing(connection, box)
             if overlap and overlap['id'] != identifier:
-                print(f'Skipped {target["name"]}: an existing regional discussion is already present')
-                continue
+                if not json.loads(overlap['evidence']).get('sample'):
+                    print(f'Skipped {target["name"]}: an existing regional discussion is already present')
+                    continue
+                identifier = overlap['id']
             now = datetime.now(timezone.utc).isoformat()
             previous = connection.execute('SELECT * FROM findings WHERE id=?', (identifier,)).fetchone()
             connection.execute('INSERT OR IGNORE INTO findings VALUES (?,?,?,?,?,?,?,?,?,?)', (

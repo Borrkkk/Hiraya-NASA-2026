@@ -47,7 +47,7 @@ function FindingContent() {
       <nav className="flex items-center justify-between text-small text-ink-secondary"><Link href="/discussions" className="hover:text-ink">← All discussions</Link><Link href={href} className="rounded-full border border-line-strong px-4 py-2 hover:text-ink">Explore this region ↗</Link></nav>
       {query.isPending ? <p role="status">Loading discussion…</p> : query.data === null ? <div role="alert">This discussion doesn’t exist in the preview. <Link href="/discussions" className="underline">See all discussions</Link></div> : query.isError ? <div role="alert">This post could not be loaded. <button className="underline" onClick={() => query.refetch()}>Retry</button></div> : post && <>
         <header className="flex flex-col gap-4">
-          <p className="text-small uppercase tracking-widest text-ink-secondary">Field notes · SPHEREx</p>
+          <p className="text-small uppercase tracking-widest text-ink-secondary">Field notes · SPHEREx{post.evidence.sample ? ' · Sample conversation' : ''}</p>
           <h1 className="max-w-4xl text-h1 text-ink">{post.title}</h1>
           <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-full border border-line-strong bg-raised text-small font-medium">{post.author.split(' ').filter((v) => v !== 'Dr.').map((v) => v[0]).slice(0, 2).join('')}</span>
             <div><p className="text-body-sm font-medium text-ink">{post.author}</p><p className="text-caption text-ink-secondary">{new Date(post.created_at).toLocaleDateString(undefined, { dateStyle: 'long' })} · {query.data?.comments.length ?? 0} replies</p></div>

@@ -9,17 +9,37 @@ import math
 import os
 from pathlib import Path
 import struct
+import re
 
 from ..models import Exposure
 
 ROW = struct.Struct('<fffhBBHHHH')
+INDEX_ROOT = Path(__file__).resolve().parents[2] / '.cache' / 'exposure-index'
+BUNDLED_INDEX = Path(__file__).resolve().parents[3] / 'data' / 'exposure-index'
+
+
+def index_directory():
+    """An explicit directory wins over the locally installed active snapshot."""
+    location = os.environ.get('SPHEREX_INDEX_DIR')
+    if location:
+        return Path(location)
+    active = INDEX_ROOT / 'active.json'
+    if not active.exists():
+        return BUNDLED_INDEX if (BUNDLED_INDEX / 'index.json').is_file() else None
+    snapshot = json.loads(active.read_text())['snapshot']
+    if not isinstance(snapshot, str) or not re.fullmatch(r'[a-f0-9]{64}', snapshot):
+        raise ValueError('Invalid active SPHEREx index snapshot')
+    return INDEX_ROOT / snapshot
+
+
+def image_source():
+    return os.environ.get('SPHEREX_IMAGE_SOURCE') or ('s3' if index_directory() else 'irsa')
 
 
 def indexed_exposures(ra, dec):
-    location = os.environ.get('SPHEREX_INDEX_DIR')
-    if not location:
+    root = index_directory()
+    if root is None:
         return None
-    root = Path(location)
     meta = json.loads((root / 'index.json').read_text())
     if meta['rowBytes'] != ROW.size:
         raise ValueError('Unsupported SPHEREx index row format')

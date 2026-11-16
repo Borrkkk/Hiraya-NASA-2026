@@ -11,6 +11,10 @@
     "2mass": {
       "label": "2MASS",
       "url": "https://irsa.ipac.caltech.edu/data/hips/CDS/2MASS/Color"
+    },
+    "spherex": {
+      "label": "SPHEREx",
+      "url": "https://irsa.ipac.caltech.edu/Missions/spherex.html"
     }
   },
   "width": 800,
@@ -51,6 +55,20 @@
       "ra": 274.7,
       "dec": -13.8167,
       "fov": 0.7
+    },
+    {
+      "id": "orion-nebula",
+      "survey": "spherex",
+      "ra": 83.8221,
+      "dec": -5.3911,
+      "fov": 0.08
+    },
+    {
+      "id": "m31",
+      "survey": "spherex",
+      "ra": 10.6847,
+      "dec": 41.2687,
+      "fov": 0.08
     }
   ]
 }

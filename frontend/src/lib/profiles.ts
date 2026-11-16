@@ -48,6 +48,18 @@ export type ObservationPost = {
 };
 export const observationPosts: ObservationPost[] = [
   {
+    authorId: "jordan-kim", id: "sample-orion-light", objectId: "orion-nebula", cutout: "orion-nebula", topic: "Star formation",
+    title: "Different infrared views of the Orion field",
+    body: "Comparing real SPHEREx revisits of the Orion field. The marked crop and labelled blink help us check which differences follow wavelength and which deserve a closer look across dates.",
+    date: "2026-11-15", dateLabel: "15 Nov 2026", verdict: "unexplained", note: "Sample discussion · Real SPHEREx observations", fov: .8,
+  },
+  {
+    authorId: "alex-rivera", id: "sample-andromeda-core", objectId: "m31", cutout: "m31", topic: "Galaxies",
+    title: "Comparing the inner Andromeda field",
+    body: "A notebook comparison of the inner Andromeda field in infrared light. I attached a marked image, a blink sequence, and brightness measurements to discuss how to choose a fair comparison region.",
+    date: "2026-11-15", dateLabel: "15 Nov 2026", verdict: "unexplained", note: "Sample discussion · Real SPHEREx observations", fov: .8,
+  },
+  {
     authorId: "maya-rao", id: "barnard-moves", activity: "Blinked two frames", facts: ["Red dwarf", "10.4″ / yr", "6 ly"], fov: 0.2, objectId: "barnard", cutout: "barnard", topic: "Stellar motion",
     title: "One dot slid up the screen",
     body: "Flicked between two dates and a single star moved. It's Barnard's Star, the fastest-moving star we know.",

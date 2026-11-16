@@ -108,6 +108,14 @@ included. Other sky surveys shown as context still load from their own servers.
 
 ## Optional static-index and S3 mode for Explore
 
+An installed local snapshot is now detected automatically through
+`backend/.cache/exposure-index/active.json`. The pinned snapshot and reproduction
+steps are documented in [data/INDEX.md](../data/INDEX.md), with saved metadata
+coverage for the recommended fields in [indexed-targets.json](../data/indexed-targets.json).
+Restart the API after installing it. The archive importer validates all tiles
+before activating a snapshot, and defaults to direct S3 access for image data.
+Explicit environment settings still take precedence.
+
 The `/explore/*` routes can discover exposures without live IRSA SIA searches.
 From `backend/`, install an exposure index from a configured HTTPS snapshot:
 
@@ -118,7 +126,9 @@ From `backend/`, install an exposure index from a configured HTTPS snapshot:
 The installer prints two PowerShell environment assignments. Run both in the
 terminal where you start the server, then start it normally. `SPHEREX_INDEX_DIR`
 points at the completed snapshot and `SPHEREX_IMAGE_SOURCE=s3` selects direct
-public-bucket downloads. Without those settings the existing IRSA path remains.
+public-bucket downloads. Without those settings or an active installed snapshot, Explore automatically
+uses the combined index committed under `data/exposure-index/`. No separate index
+download is needed for a fresh clone. See `data/INDEX.md` for provenance.
 When an index is configured, it takes precedence over partial bundled target data.
 Without an index, saved local target data still takes precedence over live searches.
 
