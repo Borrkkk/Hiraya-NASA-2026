@@ -209,6 +209,9 @@ export function SkyView() {
     const { x, y } = local(e);
     const selecting = ex.toolsEnabled && (mode === "select" || e.shiftKey);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // Backstop: if the release lands somewhere the layer can't see, the window still hears it.
+    window.addEventListener("pointerup", endAnywhere, { once: true });
+    window.addEventListener("pointercancel", endAnywhere, { once: true });
     drag.current = selecting
       ? { kind: "box", x, y, moved: false }
       : { kind: "pan", x, y, proj, view: viewStore.get(), moved: false };
@@ -221,20 +224,22 @@ export function SkyView() {
     drag.current = null;
     setDraft(null);
   }, []);
+  const endAnywhere = useCallback(() => {
+    window.removeEventListener("pointerup", endAnywhere);
+    window.removeEventListener("pointercancel", endAnywhere);
+    // The layer's own pointerup normally handles the release and clears drag.current. Only if it
+    // never did (a release it couldn't see) do we end the drag, after a beat so we never race it.
+    setTimeout(cancelDrag, 60);
+  }, [cancelDrag]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && cancelDrag();
     window.addEventListener("keydown", onKey);
-    window.addEventListener("blur", cancelDrag);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("blur", cancelDrag);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [cancelDrag]);
 
   const onPointerMove = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
-    if (e.buttons === 0) return cancelDrag(); // the button is already up
     const { x, y } = local(e);
     if (!d.moved && Math.hypot(x - d.x, y - d.y) < 4) return;
     d.moved = true;
@@ -250,14 +255,17 @@ export function SkyView() {
     const d = drag.current;
     drag.current = null;
     if (!d) return;
-    if (!d.moved) {
+    // Judge the gesture by where it ended, not by whether a move event happened to arrive:
+    // a fast flick can release before the first move is delivered.
+    const { x, y } = local(e);
+    const far = Math.abs(x - d.x) > 6 || Math.abs(y - d.y) > 6;
+    if (!d.moved && !far) {
       // A plain click outside the box clears it.
       if (ex.box) ex.setBox(null);
       return;
     }
     if (d.kind === "box") {
-      const { x, y } = local(e);
-      if (Math.abs(x - d.x) > 6 || Math.abs(y - d.y) > 6) ex.setBox(boxFromCorners(proj, d.x, d.y, x, y));
+      if (far) ex.setBox(boxFromCorners(proj, d.x, d.y, x, y));
       setDraft(null);
     }
   };
@@ -321,7 +329,6 @@ export function SkyView() {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={cancelDrag}
-        onLostPointerCapture={cancelDrag}
       />
 
       {/* 4. overlays */}
@@ -336,6 +343,8 @@ export function SkyView() {
             onChange={(b) => ex.setBox(b)}
             clientToLocal={local}
             onDraft={setDraft}
+            // While selecting, a drag anywhere (even over the old box) draws a NEW box.
+            bodyDraggable={mode !== "select"}
           />
         )}
       </svg>
