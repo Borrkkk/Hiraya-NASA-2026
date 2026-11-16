@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 
 /**
- * Pulsr logo: a reticle frame with an ember dot, then the name.
+ * Hiraya logo: a reticle frame with an ember dot, then the name.
  * Size 22–24 in app headers, 40 on slides. Never recolour the dot, and never
  * put it on a sky image without a scrim.
  */
@@ -17,7 +17,7 @@ export function Logo({
   return (
     <span
       className={cn("inline-flex items-center gap-2.5 text-ink", className)}
-      aria-label={wordmark ? undefined : "Pulsr"}
+      aria-label={wordmark ? undefined : "Hiraya"}
       role={wordmark ? undefined : "img"}
     >
       <svg
@@ -40,7 +40,7 @@ export function Logo({
           className="font-medium tracking-[-0.01em]"
           style={{ fontSize: size * 0.78, lineHeight: 1 }}
         >
-          Pulsr
+          Hiraya
         </span>
       )}
     </span>

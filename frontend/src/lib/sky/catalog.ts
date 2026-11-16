@@ -44,7 +44,7 @@ export const CATALOG: SkyObject[] = [
 
   // Stars
   { id: "proxima", name: "Proxima Centauri", aliases: ["Proxima", "Alpha Centauri C"], kind: "star", where: "Centaurus", ra: 217.4289, dec: -62.6795, fov: 0.2 },
-  { id: "barnard", name: "Barnard's Star", aliases: ["Barnards Star", "GJ 699"], kind: "star", where: "Ophiuchus", ra: 269.4521, dec: 4.6934, fov: 0.2 },
+  { id: "barnard", name: "Barnard's Star", aliases: ["Barnards Star", "GJ 699"], kind: "star", where: "Ophiuchus", ra: 269.4463, dec: 4.7682, fov: 0.2 },
   { id: "ross-128", name: "Ross 128", aliases: ["GJ 447"], kind: "star", where: "Virgo", ra: 176.9358, dec: 0.8044, fov: 0.2 },
   { id: "sirius", name: "Sirius", aliases: ["Alpha Canis Majoris"], kind: "star", where: "Canis Major", ra: 101.2872, dec: -16.7161, fov: 0.5 },
   { id: "betelgeuse", name: "Betelgeuse", aliases: ["Alpha Orionis"], kind: "star", where: "Orion", ra: 88.7929, dec: 7.4071, fov: 0.5 },

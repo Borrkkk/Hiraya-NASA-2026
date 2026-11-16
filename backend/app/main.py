@@ -12,7 +12,7 @@ from .explore.router import router as explore_router
 
 from .runtime import lifespan
 
-app = FastAPI(title='Pulsr SPHEREx Backend', version='0.1.0', lifespan=lifespan)
+app = FastAPI(title='Hiraya SPHEREx Backend', version='0.1.0', lifespan=lifespan)
 
 app.include_router(explore_router)
 

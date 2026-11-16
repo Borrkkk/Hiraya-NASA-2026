@@ -128,6 +128,16 @@ def finding(row):
     return data
 
 
+@router.get('/findings')
+def list_findings():
+    """Every discussion, newest first, with reply counts, for the discussions page."""
+    with database() as connection:
+        counts = {r['finding_id']: r['n'] for r in connection.execute(
+            'SELECT finding_id, COUNT(*) AS n FROM comments GROUP BY finding_id')}
+        rows = connection.execute('SELECT * FROM findings ORDER BY created_at DESC').fetchall()
+        return {'findings': [{**finding(r), 'replies': counts.get(r['id'], 0)} for r in rows]}
+
+
 @router.get('/findings/match')
 def match_finding(ra: float = Query(ge=0, lt=360), dec: float = Query(ge=-90, le=90),
                   width: float = Query(gt=0, le=5), height: float = Query(gt=0, le=5)):

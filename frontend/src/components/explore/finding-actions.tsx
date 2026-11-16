@@ -3,8 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
-import { type Finding, regionQuery } from '@/lib/findings';
+import { matchFinding } from '@/lib/community';
 import { useExplore } from './use-explore';
 import { buttonSecondary } from './panel-parts';
 
@@ -14,12 +13,12 @@ export function FindingActions() {
   const box = ex.box;
   const existing = useQuery({
     queryKey: ['finding-match', box],
-    queryFn: ({ signal }) => api<{ finding: Finding | null }>(`/explore/findings/match?${regionQuery(box!)}`, { signal }),
+    queryFn: () => matchFinding(box!),
     enabled: !!box,
     retry: 0,
   });
   if (!box) return null;
-  const found = existing.data?.finding;
+  const found = existing.data;
   const explained = ex.verifyState.status === 'done' && ex.verifyState.result.outcome === 'explained';
   return <div className="flex flex-col gap-2 border-t border-line p-4">
     {found ? <>

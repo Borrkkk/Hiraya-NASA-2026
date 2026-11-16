@@ -88,26 +88,6 @@ export function ObjectPanel() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <p className="text-body-sm font-medium text-ink">Brightness by infrared colour</p>
-              <div role="radiogroup" aria-label="Which observation" className="flex gap-1 rounded-md border border-line bg-surface p-0.5">
-                {[
-                  { v: false, l: "This one" },
-                  { v: true, l: "Across dates" },
-                ].map((o) => (
-                  <button
-                    key={o.l}
-                    type="button"
-                    role="radio"
-                    aria-checked={ex.allEpochs === o.v}
-                    onClick={() => ex.setAllEpochs(o.v)}
-                    className={cn(
-                      "h-7 cursor-pointer rounded-sm px-2 text-caption transition-colors duration-(--dur-feedback) ease-standard",
-                      ex.allEpochs === o.v ? "bg-overlay text-ink" : "text-ink-secondary hover:text-ink",
-                    )}
-                  >
-                    {o.l}
-                  </button>
-                ))}
-              </div>
             </div>
             <p className="text-small text-ink-secondary">Each dot is a real brightness measurement at one infrared colour, beyond what our eyes can see. Higher dots mean more light. Left is shorter wavelengths; right is longer.</p>
             {q.data.lowSignal ? (
@@ -119,7 +99,7 @@ export function ObjectPanel() {
               {q.data.evidence
                 ? "The science backend measures a compact source near the centre of your selection, subtracts nearby background light, and estimates uncertainty. It excludes flagged measurements."
                 : "We line up the images on the sky, mask flagged pixels, subtract each frame’s typical background, and average the remaining brightness inside your box. Each observation supplies a dot at its measured infrared wavelength. Stars, gas and dust inside the box can all contribute."}
-              {' '}Empty stretches are unmeasured colours. Across dates combines observations taken at different times, so a changing object can affect the shape. Comparing nearby colours helps show how the light varies with wavelength.
+              {' '}Empty stretches are unmeasured colours. The chart combines observations taken at different times, so a changing object can affect the shape. Comparing nearby colours helps show how the light varies with wavelength.
             </Reveal>
           </div>
         </div>

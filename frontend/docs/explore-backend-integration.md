@@ -3,8 +3,9 @@
 The Explore page talks to the unified Python API (`api.app:app`), reusing the
 renderer in `backend/app/explore/` and the analysis in `spherex_inspect/`. The
 contract is `frontend/src/lib/explore/types.ts`; the only file that knows URLs is
-`frontend/src/lib/explore/http-client.ts`. A mock (`lib/explore/mock/`) stays
-for demos with invented data: set `NEXT_PUBLIC_EXPLORE_API=mock`.
+`frontend/src/lib/explore/http-client.ts`. The default is now the prefetched **demo**
+(`lib/explore/demo/`, see `docs/demo.md`): set `NEXT_PUBLIC_EXPLORE_API=http` to use this client
+and the real backend instead.
 
 ## Running it
 

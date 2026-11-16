@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Chip } from "@/components/ui";
 import { api } from "@/lib/api";
+import { usingMockData } from "@/lib/explore";
 import { cn } from "@/lib/cn";
 import { exploreHref } from "@/lib/explore/href";
 import { CATALOG, KINDS, kindLabel, searchCatalog, type ObjectKind } from "@/lib/sky/catalog";
@@ -71,7 +72,7 @@ export function SkySearch({ className }: { className?: string }) {
   const hitsQuery = useQuery({
     queryKey: ["explore-search", debounced],
     queryFn: ({ signal }) => api<{ results: Hit[] }>(`/explore/search?q=${encodeURIComponent(debounced)}`, { signal }),
-    enabled: !parseCoordinates(debounced),
+    enabled: !usingMockData && !parseCoordinates(debounced),
     staleTime: 60_000,
     retry: 0,
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { type Projection } from "@/lib/explore/projection";
 import type { SkyBox } from "@/lib/explore/types";
 
@@ -35,6 +35,7 @@ export function SelectionBox({
   onChange,
   clientToLocal,
   onDraft,
+  bodyDraggable = true,
 }: {
   box: SkyBox;
   proj: Projection;
@@ -42,6 +43,8 @@ export function SelectionBox({
   clientToLocal: (e: { clientX: number; clientY: number }) => { x: number; y: number };
   /** Reports the box mid-drag (null when done), so the parent can draw it. */
   onDraft: (b: SkyBox | null) => void;
+  /** Whether the box body moves it. Off while selecting, so a drag there draws a new box. */
+  bodyDraggable?: boolean;
 }) {
   const r = rectOf(box, proj);
   const drag = useRef<{ handle: Handle; x: number; y: number; start: Rect; last: Rect } | null>(null);
@@ -51,7 +54,22 @@ export function SelectionBox({
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     const p = clientToLocal(e);
     drag.current = { handle, x: p.x, y: p.y, start: r, last: r };
+    // Backstop: a release outside the handle is still heard by the window.
+    window.addEventListener("pointerup", cancel, { once: true });
+    window.addEventListener("pointercancel", cancel, { once: true });
   };
+  // Same rule as the sky view: a drag always ends, even if the release is lost.
+  const cancel = () => {
+    if (!drag.current) return;
+    drag.current = null;
+    onDraft(null);
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && cancel();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const move = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
@@ -102,10 +120,11 @@ export function SelectionBox({
         fill="var(--color-ember-band)"
         stroke="var(--color-ember)"
         strokeWidth={1.5}
-        style={{ pointerEvents: "all", cursor: "move" }}
+        style={{ pointerEvents: bodyDraggable ? "all" : "none", cursor: "move" }}
         onPointerDown={(e) => down(e, "move")}
         onPointerMove={move}
         onPointerUp={up}
+        onPointerCancel={cancel}
       />
       {corners.map(([h, x, y, cursor]) => (
         <rect
@@ -122,6 +141,7 @@ export function SelectionBox({
           onPointerDown={(e) => down(e, h)}
           onPointerMove={move}
           onPointerUp={up}
+          onPointerCancel={cancel}
         />
       ))}
     </g>

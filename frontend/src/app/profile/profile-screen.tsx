@@ -12,7 +12,7 @@ export function ProfileScreen({ profile }: { profile: UserProfile }) {
   return (
     <main className="mx-auto w-full max-w-[1200px] px-4 pb-16 sm:px-8">
       <header className="flex h-[88px] items-center justify-between border-b border-line">
-        <Link href="/" aria-label="Pulsr home"><Logo /></Link>
+        <Link href="/" aria-label="Hiraya home"><Logo /></Link>
         <div className="flex items-center gap-4"><ThemeToggle /><Link href="/" className="inline-flex items-center gap-2 text-small text-ink-secondary transition-colors hover:text-ink">
           <ArrowLeft size={16} aria-hidden="true" /> Back to the sky
         </Link></div>

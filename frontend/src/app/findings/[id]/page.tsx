@@ -4,10 +4,9 @@ import { Suspense, useState, type FormEvent } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { api, ApiError } from '@/lib/api';
+import { addFindingComment, getFinding } from '@/lib/community';
 import { observationPosts } from '@/lib/profiles';
 import { NotebookThread } from '@/components/discussion/notebook-thread';
-import type { Finding, FindingComment } from '@/lib/findings';
 import { useAccount } from '@/lib/account';
 import { HomeHeader } from '@/components/home/header';
 import { SpectrumChart } from '@/components/explore/spectrum-chart';
@@ -24,31 +23,29 @@ function FindingContent() {
   const [body, setBody] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
-  const [summarizing, setSummarizing] = useState(false);
   const [media, setMedia] = useState<'still' | 'blink'>('still');
   const query = useQuery({ queryKey: ['finding', id],
-    queryFn: ({ signal }) => api<{ finding: Finding; comments: FindingComment[] }>(`/explore/findings/${encodeURIComponent(id)}`, { signal }),
-    refetchInterval: 15000, retry: 0 });
+    queryFn: () => getFinding(id), retry: 0 });
   async function submit(event: FormEvent) {
     event.preventDefault(); if (saving) return;
     setSaving(true); setMessage('');
     try {
-      await api(`/explore/findings/${encodeURIComponent(id)}/comments`, { method: 'POST', json: { body } });
+      await addFindingComment(id, body);
       setBody(''); await query.refetch();
     } catch { setMessage('Could not save your comment. Your draft is still here. Please retry.'); }
     finally { setSaving(false); }
   }
   const post = query.data?.finding;
   const notebookPost = observationPosts.find((entry) => entry.id === id);
-  if (query.error instanceof ApiError && query.error.status === 404 && notebookPost) return <NotebookThread post={notebookPost} />;
+  if (query.data === null && notebookPost) return <NotebookThread post={notebookPost} />;
   const href = post ? `/explore?${new URLSearchParams({ ra: String(post.evidence.view?.ra ?? post.box.ra), dec: String(post.evidence.view?.dec ?? post.box.dec),
     fov: String(post.evidence.view?.fov ?? Math.max(.1, post.box.width*4)), bands: post.evidence.bands.join(','), epoch: post.evidence.epochs[0] ?? '' })}` : '/explore';
 
   return <div className="min-h-dvh bg-ground">
     <HomeHeader />
     <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 pb-12 pt-5 sm:px-6">
-      <nav className="flex items-center justify-between text-small text-ink-secondary"><Link href="/" className="hover:text-ink">← Field notes</Link><Link href={href} className="rounded-full border border-line-strong px-4 py-2 hover:text-ink">Explore this region ↗</Link></nav>
-      {query.isPending ? <p role="status">Loading discussion…</p> : query.isError ? <div role="alert">This post could not be loaded. <button className="underline" onClick={() => query.refetch()}>Retry</button></div> : post && <>
+      <nav className="flex items-center justify-between text-small text-ink-secondary"><Link href="/discussions" className="hover:text-ink">← All discussions</Link><Link href={href} className="rounded-full border border-line-strong px-4 py-2 hover:text-ink">Explore this region ↗</Link></nav>
+      {query.isPending ? <p role="status">Loading discussion…</p> : query.data === null ? <div role="alert">This discussion doesn’t exist in the preview. <Link href="/discussions" className="underline">See all discussions</Link></div> : query.isError ? <div role="alert">This post could not be loaded. <button className="underline" onClick={() => query.refetch()}>Retry</button></div> : post && <>
         <header className="flex flex-col gap-4">
           <p className="text-small uppercase tracking-widest text-ink-secondary">Field notes · SPHEREx{post.evidence.sample ? ' · Sample conversation' : ''}</p>
           <h1 className="max-w-4xl text-h1 text-ink">{post.title}</h1>
@@ -65,10 +62,10 @@ function FindingContent() {
                 {post.evidence.animation && <button type="button" aria-pressed={media === 'blink'} className={`rounded-full px-3 py-1 text-small ${media === 'blink' ? 'bg-overlay text-ink' : 'text-ink-secondary'}`} onClick={() => setMedia('blink')}>▶ Blink {post.evidence.animation.frameCount} frames</button>}
               </div></div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/api${media === 'blink' && post.evidence.animation ? post.evidence.animation.url : post.evidence.image.url}`} alt={media === 'blink' ? 'Comparison observations with a small ring at the discussed sky position in every frame' : 'Tight observation crop with a point marker at the discussed object position'} className="h-[340px] w-full bg-black object-contain [image-rendering:pixelated]" />
+              <img src={media === 'blink' && post.evidence.animation ? post.evidence.animation.url : post.evidence.image.url} alt={media === 'blink' ? 'Comparison observations with a small ring at the discussed sky position in every frame' : 'Tight observation crop with a point marker at the discussed object position'} className="h-[340px] w-full bg-black object-contain [image-rendering:pixelated]" />
               <figcaption className="space-y-2 p-4 text-[15px] leading-relaxed text-ink-secondary">{post.evidence.sourceReference && <p className="font-medium text-ink">Highlighted source · detected in {post.evidence.sourceReference.positions.length} observations</p>}{media === 'blink' && post.evidence.animation ? post.evidence.animation.caption : post.evidence.image.caption}<br />
                 {media === 'still' ? <>{post.evidence.image.date.slice(0, 10)} · D{post.evidence.image.detector} · {post.evidence.image.wavelengthUm.toFixed(2)} µm · {post.evidence.image.extentDeg.toFixed(2)}° crop</> : 'Date, detector and wavelength are shown in large text beneath each frame.'}
-                {post.evidence.image.contextUrl && <a href={`/api${post.evidence.image.contextUrl}`} target="_blank" rel="noreferrer" className="mt-2 block w-fit underline">View wider context image ↗</a>}
+                {post.evidence.image.contextUrl && <a href={post.evidence.image.contextUrl} target="_blank" rel="noreferrer" className="mt-2 block w-fit underline">View wider context image ↗</a>}
               </figcaption>
             </figure>}
 
@@ -86,9 +83,9 @@ function FindingContent() {
                 <p className="mt-2 whitespace-pre-wrap text-body-sm">{comment.body}</p>
               </article>)}
               <form onSubmit={submit} className="flex flex-col gap-3">
-                <p className="text-small text-ink-secondary">Commenting as {account.data?.account.name ?? 'your current account'}</p>
+                <p className="text-small text-ink-secondary">Commenting as {account.data.account.name} · saved in this browser only</p>
                 <label className="flex flex-col gap-1">Add evidence or discuss<textarea required maxLength={2000} rows={4} value={body} onChange={(e) => setBody(e.target.value)} className="rounded-md border border-line-strong bg-surface p-3" /></label>
-                <button disabled={saving || !account.data} className="rounded-md bg-primary px-4 py-3 text-on-primary disabled:opacity-50">{saving ? 'Saving…' : 'Post comment'}</button>
+                <button disabled={saving} className="rounded-md bg-primary px-4 py-3 text-on-primary disabled:opacity-50">{saving ? 'Saving…' : 'Post comment'}</button>
               </form>
             </section>
             {message && <p role="status">{message}</p>}
@@ -109,12 +106,6 @@ function FindingContent() {
             <section className="rounded-xl border border-line bg-surface p-5">
               <h2 className="text-body-sm font-medium">{post.evidence.summaryMethod === 'ai' ? 'AI explanation of the observation data' : 'Observation data, explained'}</h2>
               <p className="mt-2 text-body-sm text-ink-secondary">{post.evidence.summary ?? 'No summary has been prepared yet.'}</p>
-              <button type="button" disabled={summarizing} className="mt-3 text-small underline" onClick={async () => {
-                setSummarizing(true);
-                try { await api(`/explore/findings/${encodeURIComponent(id)}/summary`, { method: 'POST' }); await query.refetch(); }
-                catch { setMessage('The summary could not be updated. Your post is still saved.'); }
-                finally { setSummarizing(false); }
-              }}>{summarizing ? 'Preparing explanation…' : account.data?.ai_available ? 'Explain with AI' : 'Refresh data summary'}</button>
             </section>
             <section className="rounded-xl border border-line bg-surface p-5 text-body-sm">
               <h2 className="mb-3 font-medium">Observation details</h2>
@@ -125,7 +116,7 @@ function FindingContent() {
               <details className="mt-3"><summary className="cursor-pointer">Observation evidence</summary><ul className="mt-2 space-y-1">{post.evidence.epochs.map((epoch) => <li key={epoch} className="break-all font-mono text-caption">{epoch}</li>)}</ul>
                 {post.evidence.track.map((point, index) => <p key={index} className="font-mono text-caption">{point.date} · {point.ra.toFixed(5)}°, {point.dec.toFixed(5)}°</p>)}</details>
             </section>
-            {post.evidence.sample && <p className="text-caption text-ink-secondary">Provenance: real SPHEREx observations and calculated measurements; conversation prepared for the app demonstration.</p>}
+            {post.evidence.demo ? <p className="text-caption text-ink-secondary">Provenance: simulated demo images and measurements{post.evidence.sample ? '; conversation prepared for the app demonstration' : ''}.</p> : post.evidence.sample && <p className="text-caption text-ink-secondary">Provenance: real SPHEREx observations and calculated measurements; conversation prepared for the app demonstration.</p>}
           </aside>
         </div>
       </>}

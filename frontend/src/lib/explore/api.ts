@@ -14,8 +14,8 @@ import type {
 /**
  * Everything the Explore page asks of the backend. Two implementations:
  *
- *   mock/mock-client.ts  procedural data, no network (default in dev)
- *   http-client.ts       calls the Python API (flip NEXT_PUBLIC_EXPLORE_API=http)
+ *   demo/demo-client.ts  prefetched, simulated Barnard's Star data, no network (default)
+ *   http-client.ts       calls the Python API (set NEXT_PUBLIC_EXPLORE_API=http)
  *
  * The UI imports `exploreApi` from "@/lib/explore" and nothing else about the
  * backend. If a method's real shape needs to change, change it here and in

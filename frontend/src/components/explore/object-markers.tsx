@@ -3,13 +3,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
-import type { Finding, FindingComment } from '@/lib/findings';
+import { findingMarkers, getFinding } from '@/lib/community';
 import { useStore } from '@/lib/explore/store';
 import type { Projection } from '@/lib/explore/projection';
 import { useExplore } from './use-explore';
-import { observationPosts, getProfile } from '@/lib/profiles';
-import { getObject } from '@/lib/sky/catalog';
 
 type Marker = { id: string; ra: number; dec: number; name: string; kind: 'finding' | 'identified'; basis?: 'catalog' | 'selection'; source?: string; epoch?: string };
 
@@ -18,10 +15,9 @@ export function ObjectMarkers({ proj }: { proj: Projection }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Marker | null>(null);
   const size = useStore(ex.sizeStore);
-  const samplePost = observationPosts.find((post) => post.id === selected?.id);
   const preview = useQuery({
     queryKey: ['finding', selected?.id],
-    queryFn: ({ signal }) => api<{ finding: Finding; comments: FindingComment[] }>(`/explore/findings/${encodeURIComponent(selected!.id)}`, { signal }),
+    queryFn: () => getFinding(selected!.id),
     enabled: selected?.kind === 'finding', retry: 0,
   });
   useEffect(() => {
@@ -32,21 +28,14 @@ export function ObjectMarkers({ proj }: { proj: Projection }) {
   const centre = ex.area?.center;
   const query = useQuery({
     queryKey: ['object-markers', centre, ex.verifyState.status],
-    queryFn: ({ signal }) => api<{ markers: Marker[] }>(`/explore/markers?ra=${centre!.ra}&dec=${centre!.dec}&radius=2`, { signal }),
+    queryFn: async () => ({ markers: (await findingMarkers(centre!.ra, centre!.dec, 2)) as Marker[] }),
     enabled: !!centre,
-    refetchInterval: 15000,
     retry: 0,
   });
-  const markers: Marker[] = [...(query.data?.markers ?? [])];
-  for (const post of observationPosts) {
-    if (markers.some((marker) => marker.id === post.id)) continue;
-    const object = getObject(post.objectId);
-    if (object.ra === undefined || object.dec === undefined) continue;
-    markers.push({ id: post.id, ra: object.ra, dec: object.dec, name: post.title, kind: 'finding' });
-  }
   return <g aria-label="Known matches and community findings">
-    {markers.map((marker) => {
-      if (marker.kind === 'finding' && !ex.showDiscussionPosts) return null;
+    {query.data?.markers.map((marker) => {
+      // Discussion markers sit on top of the motion tracks, so they step aside while motion is shown.
+      if (marker.kind === 'finding' && (!ex.showDiscussionPosts || ex.motionVisible)) return null;
       if (marker.kind === 'identified' && marker.epoch !== 'all' && marker.epoch !== ex.playheadEpoch?.id) return null;
       const [x, y] = proj.toScreen(marker.ra, marker.dec);
       if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
@@ -71,15 +60,10 @@ export function ObjectMarkers({ proj }: { proj: Projection }) {
           <button type="button" aria-label="Close discussion preview" className="px-2 py-1 text-ink-secondary" onClick={() => setSelected(null)}>×</button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-3 text-ink">
-          {samplePost && preview.isError ? <>
-            <p className="text-caption text-ink-secondary">Sample notebook post</p>
-            <h3 className="text-body-sm font-medium">{samplePost.title}</h3>
-            <p className="text-caption text-ink-secondary">{getProfile(samplePost.authorId)?.name} · {samplePost.dateLabel}</p>
-            <p className="line-clamp-3 text-small text-ink-secondary">{samplePost.body}</p>
-          </> : preview.isPending ? <p role="status" className="text-small">Loading preview…</p> : preview.isError ? <p className="text-small">Could not load this discussion. <button className="underline" onClick={() => preview.refetch()}>Retry</button></p> : preview.data && <>
+          {preview.isPending ? <p role="status" className="text-small">Loading preview…</p> : preview.isError ? <p className="text-small">Could not load this discussion. <button className="underline" onClick={() => preview.refetch()}>Retry</button></p> : preview.data && <>
             {preview.data.finding.evidence.image && <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/api${preview.data.finding.evidence.image.url}`} alt="SPHEREx discussion region" className="h-24 w-full rounded-md bg-black object-contain" />
+              <img src={preview.data.finding.evidence.image.url} alt="SPHEREx discussion region" className="h-24 w-full rounded-md bg-black object-contain" />
             </>}
             <h3 className="text-body-sm font-medium">{preview.data.finding.title}</h3>
             <p className="text-caption text-ink-secondary">{preview.data.finding.author} · {preview.data.comments.length} comments</p>

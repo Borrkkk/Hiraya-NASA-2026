@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
+import { Suspense } from "react";
 import { Providers } from "@/components/providers";
+import { GuidedTour } from "@/components/tour/guided-tour";
 import "./globals.css";
 import "./themes.css";
 
@@ -18,7 +20,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pulsr",
+  title: "Hiraya",
   description:
     "Browse SPHEREx's infrared sky, understand what you see, and share real finds.",
 };
@@ -38,7 +40,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: `try{document.documentElement.dataset.theme=localStorage.getItem("pulsr:theme")==="light"?"light":"dark"}catch{document.documentElement.dataset.theme="dark"}` }} />
       </head>
       <body className="min-h-full flex flex-col">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <Suspense>
+            <GuidedTour />
+          </Suspense>
+        </Providers>
       </body>
     </html>
   );

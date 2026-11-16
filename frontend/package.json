@@ -9,7 +9,10 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "gen:api": "openapi-typescript ${BACKEND_URL:-http://localhost:8000}/openapi.json -o src/lib/api-types.ts",
-    "bake:cutouts": "node scripts/bake-cutouts.mjs"
+    "bake:cutouts": "node scripts/bake-cutouts.mjs",
+    "demo:data": "../backend/.venv/bin/python scripts/make-demo-data.py",
+    "demo:community": "../backend/.venv/bin/python scripts/export-community.py",
+    "demo:check": "node scripts/check-demo.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.107.1",

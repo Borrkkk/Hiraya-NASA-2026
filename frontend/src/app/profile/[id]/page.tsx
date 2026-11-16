@@ -11,7 +11,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const profile = getProfile((await params).id);
-  return { title: profile ? `${profile.name} · Pulsr` : "Profile not found · Pulsr" };
+  return { title: profile ? `${profile.name} · Hiraya` : "Profile not found · Hiraya" };
 }
 
 export default async function UserProfilePage({ params }: Props) {

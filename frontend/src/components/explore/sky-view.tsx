@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { BANDS } from "@/lib/explore/bands";
 import {
@@ -16,6 +16,7 @@ import { BARE_ALADIN_OPTIONS, loadAladin, type AladinInstance } from "@/lib/sky/
 import { Curtain } from "./curtain";
 import { LayerPicker } from "./layer-picker";
 import { MotionOverlay } from "./motion-overlay";
+import { SkyGrid } from "./sky-grid";
 import { SelectionBox } from "./selection-box";
 import { ViewControls, ViewStatus } from "./view-chrome";
 import { useExplore } from "./use-explore";
@@ -208,10 +209,33 @@ export function SkyView() {
     const { x, y } = local(e);
     const selecting = ex.toolsEnabled && (mode === "select" || e.shiftKey);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // Backstop: if the release lands somewhere the layer can't see, the window still hears it.
+    window.addEventListener("pointerup", endAnywhere, { once: true });
+    window.addEventListener("pointercancel", endAnywhere, { once: true });
     drag.current = selecting
       ? { kind: "box", x, y, moved: false }
       : { kind: "pan", x, y, proj, view: viewStore.get(), moved: false };
   };
+
+  // A drag must always end. If the release never reaches us (mouse let go outside the
+  // window, focus switched, capture lost), the box would keep following the cursor.
+  const cancelDrag = useCallback(() => {
+    if (!drag.current) return;
+    drag.current = null;
+    setDraft(null);
+  }, []);
+  const endAnywhere = useCallback(() => {
+    window.removeEventListener("pointerup", endAnywhere);
+    window.removeEventListener("pointercancel", endAnywhere);
+    // The layer's own pointerup normally handles the release and clears drag.current. Only if it
+    // never did (a release it couldn't see) do we end the drag, after a beat so we never race it.
+    setTimeout(cancelDrag, 60);
+  }, [cancelDrag]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && cancelDrag();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [cancelDrag]);
 
   const onPointerMove = (e: React.PointerEvent) => {
     const d = drag.current;
@@ -231,14 +255,17 @@ export function SkyView() {
     const d = drag.current;
     drag.current = null;
     if (!d) return;
-    if (!d.moved) {
+    // Judge the gesture by where it ended, not by whether a move event happened to arrive:
+    // a fast flick can release before the first move is delivered.
+    const { x, y } = local(e);
+    const far = Math.abs(x - d.x) > 6 || Math.abs(y - d.y) > 6;
+    if (!d.moved && !far) {
       // A plain click outside the box clears it.
       if (ex.box) ex.setBox(null);
       return;
     }
     if (d.kind === "box") {
-      const { x, y } = local(e);
-      if (Math.abs(x - d.x) > 6 || Math.abs(y - d.y) > 6) ex.setBox(boxFromCorners(proj, d.x, d.y, x, y));
+      if (far) ex.setBox(boxFromCorners(proj, d.x, d.y, x, y));
       setDraft(null);
     }
   };
@@ -301,14 +328,12 @@ export function SkyView() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => {
-          drag.current = null;
-          setDraft(null);
-        }}
+        onPointerCancel={cancelDrag}
       />
 
       {/* 4. overlays */}
       <svg className="pointer-events-none absolute inset-0 z-[3] size-full" width={size.w} height={size.h}>
+        {ex.showGrid && <SkyGrid proj={proj} />}
         <MotionOverlay proj={proj} />
         <ObjectMarkers key={ex.showDiscussionPosts ? 'discussions-shown' : 'discussions-hidden'} proj={proj} />
         {boxShown && (
@@ -318,6 +343,8 @@ export function SkyView() {
             onChange={(b) => ex.setBox(b)}
             clientToLocal={local}
             onDraft={setDraft}
+            // While selecting, a drag anywhere (even over the old box) draws a NEW box.
+            bodyDraggable={mode !== "select"}
           />
         )}
       </svg>

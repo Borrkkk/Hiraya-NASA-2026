@@ -22,7 +22,7 @@ export function BandPicker() {
           Wavelength windows
         </h2>
         <p className="text-small text-ink-secondary">Selected / available observations</p>
-        <p className="mt-1 text-caption text-ink-secondary">Counts cover this area's observation sample. Windows show light near a feature, not a confirmed detection.</p>
+        <p className="mt-1 text-caption text-ink-secondary">Counts cover this area&apos;s observation sample. Windows show light near a feature, not a confirmed detection.</p>
       </header>
       <ul className="scroll-pulsr flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2">
         {BANDS.map((b) => {

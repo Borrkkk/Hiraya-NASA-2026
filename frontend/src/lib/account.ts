@@ -1,9 +1,8 @@
 "use client";
-import { useQuery } from '@tanstack/react-query';
-import { api } from './api';
 
+import { DEMO_ACCOUNT } from "./community";
+
+// There is no sign-in in the preview: everyone is the same demo profile.
 export function useAccount() {
-  return useQuery({ queryKey: ['current-account'], queryFn: () => api<{
-    account: { id: string; name: string; mode: string }; ai_available: boolean;
-  }>('/explore/session'), staleTime: 60000 });
+  return { data: { account: DEMO_ACCOUNT, ai_available: false } as const };
 }

@@ -112,6 +112,7 @@ function useController() {
   const [curtain, setCurtain] = useState(0.5);
   const [mode, setMode] = useState<"move" | "select">("move");
   const [showDiscussionPosts, setShowDiscussionPosts] = useState(true);
+  const [showGrid, setShowGrid] = useState(true);
   const [box, setBoxState] = useState<SkyBox | null>(null);
   const [moverId, setMoverId] = useState<string | null>(null);
   // Each SPHEREx exposure sees a spot at one wavelength, so a spectrum needs them combined.
@@ -509,6 +510,8 @@ function useController() {
     setMode,
     showDiscussionPosts,
     setShowDiscussionPosts,
+    showGrid,
+    setShowGrid,
     // selection
     box,
     setBox,
@@ -517,6 +520,7 @@ function useController() {
     selectedMover,
     allEpochs,
     setAllEpochs,
+    motionVisible,
     inspectQuery,
     // motion
     motion,
