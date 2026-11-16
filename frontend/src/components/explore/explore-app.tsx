@@ -1,6 +1,8 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { BandPicker } from "./band-picker";
+import { DesktopOnly } from "./desktop-only";
 import { FovControl } from "./fov-control";
 import { Sidebar } from "./sidebar";
 import { SkyView } from "./sky-view";
@@ -15,11 +17,22 @@ import { ExploreProvider } from "./use-explore";
  * (lib/explore). See docs/explore-backend-integration.md.
  */
 export function ExploreApp() {
+  const wide = useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => true);
+  // The explorer needs room (a map, a timeline and a sidebar). Smaller screens get a
+  // friendly explanation instead of a cramped, broken-looking layout.
+  if (!wide) return <DesktopOnly />;
   return (
     <ExploreProvider>
       <Layout />
     </ExploreProvider>
   );
+}
+
+const WIDE = "(min-width: 1100px)";
+function subscribeWide(callback: () => void) {
+  const query = window.matchMedia(WIDE);
+  query.addEventListener("change", callback);
+  return () => query.removeEventListener("change", callback);
 }
 
 function Layout() {

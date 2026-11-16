@@ -1,5 +1,9 @@
 # Hiraya
 
+> **Deployed preview:** the app in `frontend/` is a static, serverless preview (simulated Barnard's Star data, no backend).
+> To deploy it on Vercel see [frontend/docs/deploy.md](frontend/docs/deploy.md); to present it see [frontend/docs/demo.md](frontend/docs/demo.md).
+> Everything below describes the **real SPHEREx pipeline** used for local development.
+
 Explore the sky with Aladin Lite and retrieve SPHEREx observations by coordinates.
 
 For a new Windows computer, follow [backend/QUICKSTART.md](backend/QUICKSTART.md).

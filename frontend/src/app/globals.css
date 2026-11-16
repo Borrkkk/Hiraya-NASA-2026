@@ -209,3 +209,21 @@
 @media (prefers-reduced-motion: reduce) {
   .spectrum-draw, .spectrum-dot { animation: none; }
 }
+
+/* Guided demo: a ring that pulses around whatever the visitor should click. */
+.tour-ring {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-ember) 25%, transparent);
+  transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
+  animation: tour-pulse 1.6s ease-in-out infinite;
+}
+@keyframes tour-pulse {
+  50% {
+    box-shadow: 0 0 0 9px color-mix(in srgb, var(--color-ember) 8%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-ring {
+    animation: none;
+    transition: none;
+  }
+}

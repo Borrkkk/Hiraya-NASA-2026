@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { BANDS } from "@/lib/explore/bands";
 import {
@@ -214,9 +214,27 @@ export function SkyView() {
       : { kind: "pan", x, y, proj, view: viewStore.get(), moved: false };
   };
 
+  // A drag must always end. If the release never reaches us (mouse let go outside the
+  // window, focus switched, capture lost), the box would keep following the cursor.
+  const cancelDrag = useCallback(() => {
+    if (!drag.current) return;
+    drag.current = null;
+    setDraft(null);
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && cancelDrag();
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("blur", cancelDrag);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("blur", cancelDrag);
+    };
+  }, [cancelDrag]);
+
   const onPointerMove = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
+    if (e.buttons === 0) return cancelDrag(); // the button is already up
     const { x, y } = local(e);
     if (!d.moved && Math.hypot(x - d.x, y - d.y) < 4) return;
     d.moved = true;
@@ -302,10 +320,8 @@ export function SkyView() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => {
-          drag.current = null;
-          setDraft(null);
-        }}
+        onPointerCancel={cancelDrag}
+        onLostPointerCapture={cancelDrag}
       />
 
       {/* 4. overlays */}

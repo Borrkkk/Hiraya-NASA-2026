@@ -3,8 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
-import type { Finding, FindingComment } from '@/lib/findings';
+import { findingMarkers, getFinding } from '@/lib/community';
 import { useStore } from '@/lib/explore/store';
 import type { Projection } from '@/lib/explore/projection';
 import { useExplore } from './use-explore';
@@ -18,7 +17,7 @@ export function ObjectMarkers({ proj }: { proj: Projection }) {
   const size = useStore(ex.sizeStore);
   const preview = useQuery({
     queryKey: ['finding', selected?.id],
-    queryFn: ({ signal }) => api<{ finding: Finding; comments: FindingComment[] }>(`/explore/findings/${encodeURIComponent(selected!.id)}`, { signal }),
+    queryFn: () => getFinding(selected!.id),
     enabled: selected?.kind === 'finding', retry: 0,
   });
   useEffect(() => {
@@ -29,9 +28,8 @@ export function ObjectMarkers({ proj }: { proj: Projection }) {
   const centre = ex.area?.center;
   const query = useQuery({
     queryKey: ['object-markers', centre, ex.verifyState.status],
-    queryFn: ({ signal }) => api<{ markers: Marker[] }>(`/explore/markers?ra=${centre!.ra}&dec=${centre!.dec}&radius=2`, { signal }),
+    queryFn: async () => ({ markers: (await findingMarkers(centre!.ra, centre!.dec, 2)) as Marker[] }),
     enabled: !!centre,
-    refetchInterval: 15000,
     retry: 0,
   });
   return <g aria-label="Known matches and community findings">
@@ -65,7 +63,7 @@ export function ObjectMarkers({ proj }: { proj: Projection }) {
           {preview.isPending ? <p role="status" className="text-small">Loading preview…</p> : preview.isError ? <p className="text-small">Could not load this discussion. <button className="underline" onClick={() => preview.refetch()}>Retry</button></p> : preview.data && <>
             {preview.data.finding.evidence.image && <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/api${preview.data.finding.evidence.image.url}`} alt="SPHEREx discussion region" className="h-24 w-full rounded-md bg-black object-contain" />
+              <img src={preview.data.finding.evidence.image.url} alt="SPHEREx discussion region" className="h-24 w-full rounded-md bg-black object-contain" />
             </>}
             <h3 className="text-body-sm font-medium">{preview.data.finding.title}</h3>
             <p className="text-caption text-ink-secondary">{preview.data.finding.author} · {preview.data.comments.length} comments</p>

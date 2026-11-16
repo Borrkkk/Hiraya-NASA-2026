@@ -4,7 +4,7 @@ import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { MessageSquare, Search } from "lucide-react";
-import { api } from "@/lib/api";
+import { listFindings } from "@/lib/community";
 import { BANDS } from "@/lib/explore/bands";
 import type { Finding } from "@/lib/findings";
 import { HomeHeader } from "@/components/home/header";
@@ -41,7 +41,7 @@ function toRow(f: Finding & { replies?: number }): Row {
     tone: known?.tone ?? 3,
     when: Date.parse(f.created_at),
     replies: f.replies ?? 0,
-    image: f.evidence.image ? `/api${f.evidence.image.url}` : null,
+    image: f.evidence.image ? f.evidence.image.url : null,
     bands: f.evidence.bands,
     note: f.evidence.demo ? "Simulated demo data" : f.evidence.sample ? "Sample discussion" : null,
     place: `RA ${f.box.ra.toFixed(3)}° · Dec ${f.box.dec.toFixed(3)}°`,
@@ -89,12 +89,11 @@ function Discussions() {
   const [sort, setSort] = useState<Sort>("new");
   const query = useQuery({
     queryKey: ["all-findings"],
-    queryFn: ({ signal }) => api<{ findings: (Finding & { replies: number })[] }>("/explore/findings", { signal }),
-    refetchInterval: 15000,
+    queryFn: () => listFindings(),
     retry: 0,
   });
   const rows = useMemo(() => {
-    const all = [...(query.data?.findings.map(toRow) ?? []), ...notebookRows()];
+    const all = [...(query.data?.map(toRow) ?? []), ...notebookRows()];
     const needle = q.trim().toLowerCase();
     const shown = needle
       ? all.filter((r) => `${r.title} ${r.excerpt} ${r.author}`.toLowerCase().includes(needle))
@@ -139,7 +138,7 @@ function Discussions() {
 
         {query.isError && (
           <p role="status" className="rounded-lg border border-line bg-surface p-4 text-small text-ink-secondary">
-            Community discussions could not be loaded (is the backend running?). Showing notebook posts only.{" "}
+            The sample discussions could not be loaded. Showing notebook posts only.{" "}
             <button className="underline" onClick={() => query.refetch()}>Retry</button>
           </p>
         )}

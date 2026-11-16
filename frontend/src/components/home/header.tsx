@@ -3,6 +3,7 @@ import { SkySearch } from "@/components/search/sky-search";
 import { Avatar, Logo } from "@/components/ui";
 import { currentUserId, getProfile, profileHref } from "@/lib/profiles";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { TourLauncher } from "@/components/tour/tour-launcher";
 
 /**
  * Logo, search, and who you are. A solid bar on the page ground, never over
@@ -20,6 +21,7 @@ export function HomeHeader() {
       <SkySearch className="min-w-0 w-full max-w-[560px] flex-1" />
 
       <div className="ml-auto flex items-center gap-3">
+        <TourLauncher />
         <Link href="/discussions" className="hidden h-10 items-center rounded-md px-3 text-small text-ink-secondary transition-colors duration-(--dur-feedback) ease-standard hover:bg-raised hover:text-ink sm:inline-flex">
           Discussions
         </Link>

@@ -130,7 +130,7 @@ export function ViewControls() {
 
 /** Loading, error, and "range changed" notes at the top of the view. */
 export function ViewStatus() {
-    const { dataStatus, noData, retryData, outdated, motion, usingMock } =
+    const { dataStatus, noData, retryData, outdated, motion } =
         useExplore();
     return (
         <>

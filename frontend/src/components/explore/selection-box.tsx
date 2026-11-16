@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { type Projection } from "@/lib/explore/projection";
 import type { SkyBox } from "@/lib/explore/types";
 
@@ -52,9 +52,26 @@ export function SelectionBox({
     const p = clientToLocal(e);
     drag.current = { handle, x: p.x, y: p.y, start: r, last: r };
   };
+  // Same rule as the sky view: a drag always ends, even if the release is lost.
+  const cancel = () => {
+    if (!drag.current) return;
+    drag.current = null;
+    onDraft(null);
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && cancel();
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("blur", cancel);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("blur", cancel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const move = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
+    if (e.buttons === 0) return cancel();
     const p = clientToLocal(e);
     const dx = p.x - d.x;
     const dy = p.y - d.y;
@@ -106,6 +123,8 @@ export function SelectionBox({
         onPointerDown={(e) => down(e, "move")}
         onPointerMove={move}
         onPointerUp={up}
+        onPointerCancel={cancel}
+        onLostPointerCapture={cancel}
       />
       {corners.map(([h, x, y, cursor]) => (
         <rect
@@ -122,6 +141,8 @@ export function SelectionBox({
           onPointerDown={(e) => down(e, h)}
           onPointerMove={move}
           onPointerUp={up}
+          onPointerCancel={cancel}
+          onLostPointerCapture={cancel}
         />
       ))}
     </g>
