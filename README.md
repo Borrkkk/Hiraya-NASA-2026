@@ -1,4 +1,4 @@
-# Pulsr
+# Hiraya
 
 Explore the sky with Aladin Lite and retrieve SPHEREx observations by coordinates.
 

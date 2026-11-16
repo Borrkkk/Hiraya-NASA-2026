@@ -12,7 +12,7 @@ export function HomeHeader() {
   const currentUser = getProfile(currentUserId)!;
   return (
     <header className="relative z-30 flex h-[72px] shrink-0 items-center gap-3 px-4 sm:gap-6 sm:px-6">
-      <Link href="/" aria-label="Pulsr home" className="rounded-xs">
+      <Link href="/" aria-label="Hiraya home" className="rounded-xs">
         {/* Mark only on phones so the search gets the room. */}
         <Logo size={22} className="max-sm:[&>span:last-child]:hidden" />
       </Link>

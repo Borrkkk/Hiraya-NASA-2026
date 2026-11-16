@@ -1,4 +1,4 @@
-# Pulsr demo: Barnard's Star
+# Hiraya demo: Barnard's Star
 
 The Explore page runs on **prefetched, simulated SPHEREx data** for one place,
 Barnard's Star, so the demo can't fail on a slow archive or a bad connection.

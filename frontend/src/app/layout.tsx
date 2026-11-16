@@ -18,7 +18,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pulsr",
+  title: "Hiraya",
   description:
     "Browse SPHEREx's infrared sky, understand what you see, and share real finds.",
 };

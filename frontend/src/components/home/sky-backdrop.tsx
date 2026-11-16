@@ -19,12 +19,19 @@ const SURVEY = "https://irsa.ipac.caltech.edu/data/hips/CDS/DSS2/color";
 
 // Where the tour goes, in order: objects that look spectacular in DSS2 at a
 // wide field. Names and positions come from the catalogue, so the label is true.
-// Demo build: open on something spectacular, then settle on Barnard's Star, the
-// one place the Explore page has prefetched SPHEREx data for (public/demo).
-// The tour stops at the last entry; add stops before it to make the intro longer.
+// A loop of the showpieces, each from a wide field down to the object. Barnard's Star
+// (the demo's Explore target) is reached through the search, so it isn't a stop here.
 const TOUR = [
   { id: "orion-nebula", fov: 5 },
-  { id: "barnard", fov: 0.5 },
+  { id: "carina", fov: 4 },
+  { id: "m31", fov: 5 },
+  { id: "eagle", fov: 2.5 },
+  { id: "horsehead", fov: 1.6 },
+  { id: "m51", fov: 0.6 },
+  { id: "tarantula", fov: 2 },
+  { id: "pleiades", fov: 3 },
+  { id: "crab", fov: 0.5 },
+  { id: "lagoon", fov: 2.5 },
 ].map((t) => {
   const o = getObject(t.id);
   return { id: o.id, name: o.name, ra: o.ra!, dec: o.dec!, fov: t.fov };
@@ -154,7 +161,7 @@ export function SkyBackdrop({ className }: { className?: string }) {
     // frame as an overlay, jump underneath it (one patch of tiles, tops), let
     // those load, then dissolve the old frame away. Never black, never blocky.
     const next = async () => {
-      if (cancelled || !aladin || index >= TOUR.length - 1) return; // rests on the last stop
+      if (cancelled || !aladin) return;
       if (confirming.current || userHolding || document.hidden) return schedule(2_000);
 
       index = (index + 1) % TOUR.length;

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ExploreApp } from "@/components/explore/explore-app";
 
-export const metadata: Metadata = { title: "Explore · Pulsr" };
+export const metadata: Metadata = { title: "Explore · Hiraya" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
